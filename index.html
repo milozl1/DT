@@ -1,19 +1,606 @@
 <!DOCTYPE html>
-<html lang="ro">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Calendar Lucru</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <h2 id="monthTitle"></h2>
-    <div class="nav">
-      <button id="prevBtn">⬅ Luna Anterioară</button>
-      <button id="nextBtn">Luna Următoare ➡</button>
-    </div>
-    <div id="calendarGrid" class="calendar-grid"></div>
-    <div id="summary" style="margin-top: 20px"></div>
-    <script src="script.js"></script>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulare Automat Finit - Lexeme Quick</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; }
+    .state { display: inline-block; padding: 10px 20px; margin: 5px; border-radius: 8px; border: 2px solid #333; }
+    .active { background: #cce5ff; border-color: #007bff; }
+    .final { background: #d4edda; border-color: #28a745; }
+    .error { background: #f8d7da; border-color: #dc3545; }
+    .step { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Simulare diagramă de tranziție pentru atomi lexicali Quick</h2>
+  <label for="atomType">Alege tipul de atom:</label>
+  <select id="atomType">
+    <option value="ID">ID (identificator)</option>
+    <option value="INT">INT (const. întreagă)</option>
+    <option value="REAL">REAL (const. reală)</option>
+    <option value="STR">STR (șir de caractere)</option>
+    <option value="VAR">VAR (cuvânt cheie 'var')</option>
+    <option value="FUNCTION">FUNCTION (cuvânt cheie 'function')</option>
+    <option value="IF">IF (cuvânt cheie 'if')</option>
+    <option value="ELSE">ELSE (cuvânt cheie 'else')</option>
+    <option value="WHILE">WHILE (cuvânt cheie 'while')</option>
+    <option value="END">END (cuvânt cheie 'end')</option>
+    <option value="RETURN">RETURN (cuvânt cheie 'return')</option>
+    <option value="TYPE_INT">TYPE_INT (cuvânt cheie 'int')</option>
+    <option value="TYPE_REAL">TYPE_REAL (cuvânt cheie 'real')</option>
+    <option value="TYPE_STR">TYPE_STR (cuvânt cheie 'str')</option>
+    <option value="COLON">COLON (:)</option>
+    <option value="SEMICOLON">SEMICOLON (;)</option>
+    <option value="LPAR">LPAR (()</option>
+    <option value="RPAR">RPAR ())</option>
+    <option value="COMMA">COMMA (,)</option>
+    <option value="OR">OR (||)</option>
+    <option value="AND">AND (&&)</option>
+    <option value="NOT">NOT (!)</option>
+    <option value="EQUAL">EQUAL (==)</option>
+    <option value="NOTEQUAL">NOTEQUAL (!=)</option>
+    <option value="LESS">LESS (<)</option>
+    <option value="ASSIGN">ASSIGN (=)</option>
+    <option value="ADD">ADD (+)</option>
+    <option value="SUB">SUB (-)</option>
+    <option value="MUL">MUL (*)</option>
+    <option value="DIV">DIV (/)</option>
+    <option value="FINISH">FINISH (EOF/\0)</option>
+    <option value="SPACE">SPACE (spațiu/tab/nou rând)</option>
+    <option value="COMMENT">COMMENT (#...)</option>
+    <option value="LEXEME_MULTI">Lexeme multiple (INT, REAL, COMENTARIU)</option>
+    <option value="TEMA2">Tema 2: CT_INT și CT_REAL</option>
+  </select>
+  <br><br>
+  <input id="input" type="text" placeholder="Introdu textul..." />
+  <button onclick="simulate()">Simulează</button>
+  <div id="regula"></div>
+  <div id="explicatie" style="margin-bottom:10px;"></div>
+  <div id="exemple" style="margin-bottom:10px;"></div>
+  <div id="result"></div>
+  <div id="steps"></div>
+  <div id="tema2-explicatii" style="display:none; margin:20px 0; background:#f8f9fa; border:1px solid #ccc; padding:15px; border-radius:8px;"></div>
+  <button id="btnExplicaTema2" style="display:none; margin-bottom:20px;">Explică pașii pentru Tema 2</button>
 
-  </body>
+  <script>
+    const reguli = {
+      ID: {
+        descriere: "ID ::= [a-zA-Z_] [a-zA-Z_0-9]*",
+        explicatie: "Un identificator începe cu o literă sau _ și poate continua cu litere, cifre sau _.",
+        exemple: {
+          valide: ["nume", "_abc", "a1b2_c3"],
+          invalide: ["1abc", "-nume", "a b"]
+        },
+        simulare: function(input) {
+          let state = 'q0', steps = [], valid = true, reason = '';
+          for (let i = 0; i < input.length; i++) {
+            const ch = input[i];
+            if (state === 'q0') {
+              if (/[a-zA-Z_]/.test(ch)) {
+                state = 'q1';
+                steps.push(`<div class='step'><span class='state active'>q0</span> -- '${ch}' --> <span class='state final'>q1</span></div>`);
+              } else {
+                valid = false;
+                reason = "Primul caracter trebuie să fie literă sau _. ";
+                steps.push(`<div class='step'><span class='state active'>q0</span> -- '${ch}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+                break;
+              }
+            } else if (state === 'q1') {
+              if (/[a-zA-Z0-9_]/.test(ch)) {
+                steps.push(`<div class='step'><span class='state final'>q1</span> -- '${ch}' --> <span class='state final'>q1</span></div>`);
+              } else {
+                valid = false;
+                reason = "Caracterul '"+ch+"' nu este permis într-un identificator.";
+                steps.push(`<div class='step'><span class='state final'>q1</span> -- '${ch}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+                break;
+              }
+            }
+          }
+          if (input.length === 0) {
+            valid = false;
+            reason = "Identificatorul nu poate fi gol.";
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+          }
+          return {valid: valid && state === 'q1', steps, reason: valid ? '' : reason};
+        }
+      },
+      INT: {
+        descriere: "INT ::= [0-9]+",
+        explicatie: "O constantă întreagă este formată din una sau mai multe cifre.",
+        exemple: { valide: ["123", "0", "4567"], invalide: ["a12", "12a", "1 2"] },
+        simulare: function(input) {
+          let state = 'q0', steps = [], valid = true, reason = '';
+          for (let i = 0; i < input.length; i++) {
+            const ch = input[i];
+            if (/[0-9]/.test(ch)) {
+              steps.push(`<div class='step'><span class='state ${state==="q0"?"active":"final"}'>${state}</span> -- '${ch}' --> <span class='state final'>q1</span></div>`);
+              state = 'q1';
+            } else {
+              valid = false;
+              reason = "Toate caracterele trebuie să fie cifre.";
+              steps.push(`<div class='step'><span class='state final'>q1</span> -- '${ch}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+              break;
+            }
+          }
+          if (input.length === 0) {
+            valid = false;
+            reason = "Constanta întreagă nu poate fi goală.";
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+          }
+          return {valid: valid && state === 'q1' && input.length > 0, steps, reason: valid ? '' : reason};
+        }
+      },
+      REAL: {
+        descriere: "REAL ::= [0-9]+ . [0-9]+",
+        explicatie: "O constantă reală are cel puțin o cifră, urmată de punct și cel puțin o cifră.",
+        exemple: { valide: ["1.0", "123.456", "0.5"], invalide: [".5", "5.", "12a.3"] },
+        simulare: function(input) {
+          let state = 'q0', steps = [], valid = true, i = 0, reason = '';
+          let intPart = '';
+          while (i < input.length && /[0-9]/.test(input[i])) {
+            intPart += input[i];
+            steps.push(`<div class='step'><span class='state ${state==="q0"?"active":"final"}'>${state}</span> -- '${input[i]}' --> <span class='state final'>q1</span></div>`);
+            state = 'q1';
+            i++;
+          }
+          if (intPart.length === 0 || input[i] !== '.') {
+            valid = false;
+            reason = intPart.length === 0 ? "Partea întreagă lipsește." : "Lipsește punctul zecimal.";
+            steps.push(`<div class='step'><span class='state final'>q1</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            return {valid: false, steps, reason};
+          }
+          steps.push(`<div class='step'><span class='state final'>q1</span> -- '.' --> <span class='state final'>q2</span></div>`);
+          state = 'q2';
+          i++;
+          let fracPart = '';
+          while (i < input.length && /[0-9]/.test(input[i])) {
+            fracPart += input[i];
+            steps.push(`<div class='step'><span class='state final'>q2</span> -- '${input[i]}' --> <span class='state final'>q2</span></div>`);
+            i++;
+          }
+          if (fracPart.length === 0) {
+            valid = false;
+            reason = "Partea fracționară lipsește.";
+            steps.push(`<div class='step'><span class='state final'>q2</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+          } else if (i !== input.length) {
+            valid = false;
+            reason = "Există caractere suplimentare după partea fracționară.";
+            steps.push(`<div class='step'><span class='state final'>q2</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+          }
+          return {valid: valid && fracPart.length > 0 && i === input.length, steps, reason: valid ? '' : reason};
+        }
+      },
+      STR: {
+        descriere: 'STR ::= " [^\"]* "',
+        explicatie: 'Un șir de caractere începe și se termină cu ghilimele duble ("), iar între ele pot fi orice caractere, cu excepția ghilimelei duble.',
+        exemple: { valide: ['"abc"', '"123"', '"a b c"'], invalide: ['abc', '"abc', 'abc"'] },
+        simulare: function(input) {
+          let state = 'q0', steps = [], valid = true, reason = '';
+          if (input[0] !== '"') {
+            reason = "Lipsește ghilimea de început.";
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '${input[0]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            return {valid: false, steps, reason};
+          }
+          state = 'q1';
+          steps.push(`<div class='step'><span class='state active'>q0</span> -- '"' --> <span class='state final'>q1</span></div>`);
+          let i = 1;
+          while (i < input.length && input[i] !== '"') {
+            steps.push(`<div class='step'><span class='state final'>q1</span> -- '${input[i]}' --> <span class='state final'>q1</span></div>`);
+            i++;
+          }
+          if (input[i] === '"') {
+            steps.push(`<div class='step'><span class='state final'>q1</span> -- '"' --> <span class='state final'>q2</span></div>`);
+            state = 'q2';
+            i++;
+          } else {
+            valid = false;
+            reason = "Lipsește ghilimea de final.";
+            steps.push(`<div class='step'><span class='state final'>q1</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+          }
+          if (i !== input.length) {
+            valid = false;
+            reason = "Există caractere suplimentare după ghilimea de final.";
+            steps.push(`<div class='step'><span class='state final'>q2</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+          }
+          return {valid: valid && state === 'q2', steps, reason: valid ? '' : reason};
+        }
+      },
+      // Cuvinte cheie și operatori: verificare directă
+      VAR: { descriere: "VAR ::= var", explicatie: "Cuvânt cheie pentru declararea variabilelor.", exemple: {valide: ["var"], invalide: ["Var", "var1", "v ar"]}, simulare: function(input) { return {valid: input==="var", steps: [input==="var" ? `<div class='step'><span class='state active'>q0</span> -- 'v' 'a' 'r' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'var')</div>`], reason: input==="var" ? '' : "Trebuie să fie exact 'var', fără alte caractere."}; } },
+      FUNCTION: { descriere: "FUNCTION ::= function", explicatie: "Cuvânt cheie pentru definirea funcțiilor.", exemple: {valide: ["function"], invalide: ["Function", "function1"]}, simulare: function(input) { return {valid: input==="function", steps: [input==="function" ? `<div class='step'><span class='state active'>q0</span> -- 'function' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'function')</div>`], reason: input==="function" ? '' : "Trebuie să fie exact 'function', fără alte caractere."}; } },
+      IF: { descriere: "IF ::= if", explicatie: "Cuvânt cheie pentru instrucțiunea condițională.", exemple: {valide: ["if"], invalide: ["If", "iff"]}, simulare: function(input) { return {valid: input==="if", steps: [input==="if" ? `<div class='step'><span class='state active'>q0</span> -- 'if' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'if')</div>`], reason: input==="if" ? '' : "Trebuie să fie exact 'if', fără alte caractere."}; } },
+      ELSE: { descriere: "ELSE ::= else", explicatie: "Cuvânt cheie pentru ramura alternativă a unei condiții.", exemple: {valide: ["else"], invalide: ["Else", "else1"]}, simulare: function(input) { return {valid: input==="else", steps: [input==="else" ? `<div class='step'><span class='state active'>q0</span> -- 'else' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'else')</div>`], reason: input==="else" ? '' : "Trebuie să fie exact 'else', fără alte caractere."}; } },
+      WHILE: { descriere: "WHILE ::= while", explicatie: "Cuvânt cheie pentru buclă repetitivă.", exemple: {valide: ["while"], invalide: ["While", "whi le"]}, simulare: function(input) { return {valid: input==="while", steps: [input==="while" ? `<div class='step'><span class='state active'>q0</span> -- 'while' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'while')</div>`], reason: input==="while" ? '' : "Trebuie să fie exact 'while', fără alte caractere."}; } },
+      END: { descriere: "END ::= end", explicatie: "Cuvânt cheie pentru încheierea unui bloc.", exemple: {valide: ["end"], invalide: ["End", "end1"]}, simulare: function(input) { return {valid: input==="end", steps: [input==="end" ? `<div class='step'><span class='state active'>q0</span> -- 'end' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'end')</div>`], reason: input==="end" ? '' : "Trebuie să fie exact 'end', fără alte caractere."}; } },
+      RETURN: { descriere: "RETURN ::= return", explicatie: "Cuvânt cheie pentru returnarea unei valori dintr-o funcție.", exemple: {valide: ["return"], invalide: ["Return", "return1"]}, simulare: function(input) { return {valid: input==="return", steps: [input==="return" ? `<div class='step'><span class='state active'>q0</span> -- 'return' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'return')</div>`], reason: input==="return" ? '' : "Trebuie să fie exact 'return', fără alte caractere."}; } },
+      TYPE_INT: { descriere: "TYPE_INT ::= int", explicatie: "Cuvânt cheie pentru tipul întreg.", exemple: {valide: ["int"], invalide: ["Int", "int1"]}, simulare: function(input) { return {valid: input==="int", steps: [input==="int" ? `<div class='step'><span class='state active'>q0</span> -- 'int' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'int')</div>`], reason: input==="int" ? '' : "Trebuie să fie exact 'int', fără alte caractere."}; } },
+      TYPE_REAL: { descriere: "TYPE_REAL ::= real", explicatie: "Cuvânt cheie pentru tipul real.", exemple: {valide: ["real"], invalide: ["Real", "real1"]}, simulare: function(input) { return {valid: input==="real", steps: [input==="real" ? `<div class='step'><span class='state active'>q0</span> -- 'real' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'real')</div>`], reason: input==="real" ? '' : "Trebuie să fie exact 'real', fără alte caractere."}; } },
+      TYPE_STR: { descriere: "TYPE_STR ::= str", explicatie: "Cuvânt cheie pentru tipul șir de caractere.", exemple: {valide: ["str"], invalide: ["Str", "str1"]}, simulare: function(input) { return {valid: input==="str", steps: [input==="str" ? `<div class='step'><span class='state active'>q0</span> -- 'str' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact 'str')</div>`], reason: input==="str" ? '' : "Trebuie să fie exact 'str', fără alte caractere."}; } },
+      COLON: { descriere: "COLON ::= :", explicatie: "Separator de tip.", exemple: {valide: [":"], invalide: [";", "::"]}, simulare: function(input) { return {valid: input===':', steps: [input===':' ? `<div class='step'><span class='state active'>q0</span> -- ':' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact ':') </div>`], reason: input===':' ? '' : "Trebuie să fie exact ':'."}; } },
+      SEMICOLON: { descriere: "SEMICOLON ::= ;", explicatie: "Separator de instrucțiuni.", exemple: {valide: [";"], invalide: [":", ","]}, simulare: function(input) { return {valid: input===';', steps: [input===';' ? `<div class='step'><span class='state active'>q0</span> -- ';' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact ';') </div>`], reason: input===';' ? '' : "Trebuie să fie exact ';'."}; } },
+      LPAR: { descriere: "LPAR ::= (", explicatie: "Paranteză deschisă.", exemple: {valide: ["("], invalide: [")", "("]}, simulare: function(input) { return {valid: input==='(', steps: [input==='(' ? `<div class='step'><span class='state active'>q0</span> -- '(' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '(') </div>`], reason: input==='(' ? '' : "Trebuie să fie exact '('."}; } },
+      RPAR: { descriere: "RPAR ::= )", explicatie: "Paranteză închisă.", exemple: {valide: [")"], invalide: ["(", ")("]}, simulare: function(input) { return {valid: input===')', steps: [input===')' ? `<div class='step'><span class='state active'>q0</span> -- ')' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact ')') </div>`], reason: input===')' ? '' : "Trebuie să fie exact ')'."}; } },
+      COMMA: { descriere: "COMMA ::= ,", explicatie: "Separator de argumente.", exemple: {valide: [","], invalide: [";", "."]}, simulare: function(input) { return {valid: input===',', steps: [input===',' ? `<div class='step'><span class='state active'>q0</span> -- ',' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact ',') </div>`], reason: input===',' ? '' : "Trebuie să fie exact ','."}; } },
+      OR: { descriere: "OR ::= ||", explicatie: "Operator logic SAU.", exemple: {valide: ["||"], invalide: ["|", "|||"]}, simulare: function(input) { return {valid: input==='||', steps: [input==='||' ? `<div class='step'><span class='state active'>q0</span> -- '||' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '||') </div>`], reason: input==='||' ? '' : "Trebuie să fie exact '||'."}; } },
+      AND: { descriere: "AND ::= &&", explicatie: "Operator logic ȘI.", exemple: {valide: ["&&"], invalide: ["&", "&&&"]}, simulare: function(input) { return {valid: input==='&&', steps: [input==='&&' ? `<div class='step'><span class='state active'>q0</span> -- '&&' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '&&') </div>`], reason: input==='&&' ? '' : "Trebuie să fie exact '&&'."}; } },
+      NOT: { descriere: "NOT ::= !", explicatie: "Operator logic NU.", exemple: {valide: ["!"], invalide: ["!!", "!"]}, simulare: function(input) { return {valid: input==='!', steps: [input==='!' ? `<div class='step'><span class='state active'>q0</span> -- '!' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '!') </div>`], reason: input==='!' ? '' : "Trebuie să fie exact '!'."}; } },
+      EQUAL: { descriere: "EQUAL ::= ==", explicatie: "Operator de egalitate.", exemple: {valide: ["=="], invalide: ["=", "==="]}, simulare: function(input) { return {valid: input==='==', steps: [input==='==' ? `<div class='step'><span class='state active'>q0</span> -- '==' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '==') </div>`], reason: input==='==' ? '' : "Trebuie să fie exact '=='."}; } },
+      NOTEQUAL: { descriere: "NOTEQUAL ::= !=", explicatie: "Operator de diferență.", exemple: {valide: ["!="], invalide: ["=", "!=="]}, simulare: function(input) { return {valid: input==='!=', steps: [input==='!=' ? `<div class='step'><span class='state active'>q0</span> -- '!=' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '!=') </div>`], reason: input==='!=' ? '' : "Trebuie să fie exact '!='."}; } },
+      LESS: { descriere: "LESS ::= <", explicatie: "Operator mai mic.", exemple: {valide: ["<"], invalide: [">", "<<"]}, simulare: function(input) { return {valid: input==='<', steps: [input==='<' ? `<div class='step'><span class='state active'>q0</span> -- '<' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '<') </div>`], reason: input==='<' ? '' : "Trebuie să fie exact '<'."}; } },
+      ASSIGN: { descriere: "ASSIGN ::= =", explicatie: "Operator de atribuire.", exemple: {valide: ["="], invalide: ["==", "="]}, simulare: function(input) { return {valid: input==='=', steps: [input==='=' ? `<div class='step'><span class='state active'>q0</span> -- '=' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '=') </div>`], reason: input==='=' ? '' : "Trebuie să fie exact '='."}; } },
+      ADD: { descriere: "ADD ::= +", explicatie: "Operator de adunare.", exemple: {valide: ["+"], invalide: ["++", "-"]}, simulare: function(input) { return {valid: input==='+', steps: [input==='+' ? `<div class='step'><span class='state active'>q0</span> -- '+' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '+') </div>`], reason: input==='+' ? '' : "Trebuie să fie exact '+'."}; } },
+      SUB: { descriere: "SUB ::= -", explicatie: "Operator de scădere.", exemple: {valide: ["-"], invalide: ["--", "+"]}, simulare: function(input) { return {valid: input==='-', steps: [input==='-' ? `<div class='step'><span class='state active'>q0</span> -- '-' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '-') </div>`], reason: input==='-' ? '' : "Trebuie să fie exact '-'."}; } },
+      MUL: { descriere: "MUL ::= *", explicatie: "Operator de înmulțire.", exemple: {valide: ["*"], invalide: ["**", "/"]}, simulare: function(input) { return {valid: input==='*', steps: [input==='*' ? `<div class='step'><span class='state active'>q0</span> -- '*' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '*') </div>`], reason: input==='*' ? '' : "Trebuie să fie exact '*'."}; } },
+      DIV: { descriere: "DIV ::= /", explicatie: "Operator de împărțire.", exemple: {valide: ["/"], invalide: ["//", "*"]}, simulare: function(input) { return {valid: input==='/', steps: [input==='/' ? `<div class='step'><span class='state active'>q0</span> -- '/' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact '/') </div>`], reason: input==='/' ? '' : "Trebuie să fie exact '/'."}; } },
+      FINISH: { descriere: "FINISH ::= \\0 sau EOF", explicatie: "Marcator de sfârșit de fișier.", exemple: {valide: ["\0", "EOF"], invalide: ["0", "eof"]}, simulare: function(input) { return {valid: input==='\0' || input==='EOF', steps: [input==='\0'||input==='EOF' ? `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie exact EOF sau \0)</div>`], reason: (input==='\0'||input==='EOF') ? '' : "Trebuie să fie exact EOF sau \\0."}; } },
+      SPACE: { descriere: "SPACE ::= [ \r\n\t]", explicatie: "Spațiu, tab sau caracter de linie nouă.", exemple: {valide: [" ", "\t", "\n"], invalide: ["a", "1"]}, simulare: function(input) { return {valid: /^[ \r\n\t]+$/.test(input), steps: [/^[ \r\n\t]+$/.test(input) ? `<div class='step'><span class='state active'>q0</span> -- '${input.replace(/ /g,'[spatiu]').replace(/\r/g,'[\r]').replace(/\n/g,'[\n]').replace(/\t/g,'[tab]')}' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să fie doar spațiu/tab/nou rând)</div>`], reason: /^[ \r\n\t]+$/.test(input) ? '' : "Trebuie să fie doar spațiu, tab sau linie nouă."}; } },
+      COMMENT: { descriere: "COMMENT ::= # [^\r\n\0]*", explicatie: "Comentariu pe o linie, începe cu #.", exemple: {valide: ["# comentariu"], invalide: ["comentariu", "#comentariu\naltceva"]}, simulare: function(input) { return {valid: /^#[^\r\n\0]*$/.test(input), steps: [/^#[^\r\n\0]*$/.test(input) ? `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state final'>q1</span></div>` : `<div class='step'><span class='state active'>q0</span> -- '${input}' --> <span class='state error'>Eroare</span> (trebuie să înceapă cu # și să nu conțină \n sau \0)</div>`], reason: /^#[^\r\n\0]*$/.test(input) ? '' : "Comentariul trebuie să înceapă cu # și să nu conțină \n sau \0."}; } },
+      LEXEME_MULTI: {
+        descriere: `DIGIT: [0-9]<br>INT: DIGIT+<br>REAL: INT . INT<br>COMENTARIU: { [^}]* }`,
+        explicatie: `Automatul recunoaște simultan constante întregi (INT), reale (REAL) și comentarii (COMENTARIU). Se aplică regula celui mai lung lexem și prioritatea: REAL > INT > COMENTARIU.`,
+        exemple: {
+          valide: ["123", "45.67", "{acesta e comentariu}"],
+          invalide: ["12a", "45.", "{fara inchidere"]
+        },
+        simulare: function(input) {
+          let state = 'q0', steps = [], valid = false, type = '', reason = '', i = 0;
+          if (input[0] === '{') {
+            state = 'q5';
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '{' --> <span class='state final'>q5</span></div>`);
+            i = 1;
+            while (i < input.length && input[i] !== '}') {
+              steps.push(`<div class='step'><span class='state final'>q5</span> -- '${input[i]}' --> <span class='state final'>q5</span></div>`);
+              i++;
+            }
+            if (input[i] === '}') {
+              steps.push(`<div class='step'><span class='state final'>q5</span> -- '}' --> <span class='state final'>q6</span></div>`);
+              state = 'q6';
+              i++;
+              valid = true;
+              type = 'COMENTARIU';
+            } else {
+              reason = "Comentariul nu se termină cu '}'.";
+              steps.push(`<div class='step'><span class='state final'>q5</span> -- '' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            if (i !== input.length) {
+              valid = false;
+              reason = "Există caractere suplimentare după comentariu.";
+              steps.push(`<div class='step'><span class='state final'>q6</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            return {valid: valid && type==='COMENTARIU', steps, reason: valid ? '' : reason, type: valid ? type : ''};
+          }
+          // INT sau REAL
+          if (/[0-9]/.test(input[0])) {
+            state = 'q1';
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '${input[0]}' --> <span class='state final'>q1</span></div>`);
+            i = 1;
+            while (i < input.length && /[0-9]/.test(input[i])) {
+              steps.push(`<div class='step'><span class='state final'>q1</span> -- '${input[i]}' --> <span class='state final'>q1</span></div>`);
+              i++;
+            }
+            if (input[i] === '.') {
+              steps.push(`<div class='step'><span class='state final'>q1</span> -- '.' --> <span class='state final'>q2</span></div>`);
+              state = 'q2';
+              i++;
+              let frac = false;
+              if (/[0-9]/.test(input[i])) {
+                frac = true;
+                steps.push(`<div class='step'><span class='state final'>q2</span> -- '${input[i]}' --> <span class='state final'>q3</span></div>`);
+                i++;
+                while (i < input.length && /[0-9]/.test(input[i])) {
+                  steps.push(`<div class='step'><span class='state final'>q3</span> -- '${input[i]}' --> <span class='state final'>q3</span></div>`);
+                  i++;
+                }
+              }
+              if (!frac) {
+                reason = "După punct trebuie să urmeze cel puțin o cifră.";
+                steps.push(`<div class='step'><span class='state final'>q2</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+                return {valid: false, steps, reason, type: ''};
+              }
+              if (i === input.length) {
+                valid = true;
+                type = 'REAL';
+              } else {
+                valid = false;
+                reason = "Există caractere suplimentare după partea reală.";
+                steps.push(`<div class='step'><span class='state final'>q3</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+              }
+              return {valid, steps, reason: valid ? '' : reason, type: valid ? type : ''};
+            }
+            // INT
+            if (i === input.length) {
+              valid = true;
+              type = 'INT';
+            } else {
+              valid = false;
+              reason = "Există caractere suplimentare după partea întreagă.";
+              steps.push(`<div class='step'><span class='state final'>q1</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            return {valid, steps, reason: valid ? '' : reason, type: valid ? type : ''};
+          }
+          reason = "Nu începe cu cifră sau cu '{'.";
+          steps.push(`<div class='step'><span class='state active'>q0</span> -- '${input[0]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+          return {valid: false, steps, reason, type: ''};
+        }
+      },
+      TEMA2: {
+        descriere: "CT_INT și CT_REAL",
+        explicatie: "Recunoașterea constantelor întregi (CT_INT) și reale (CT_REAL) în diferite formate: zecimal, octal, hexazecimal și real cu exponent.",
+        exemple: {
+          valide: ["123", "45.67", "`o77", "`ox1A3", "12.34e10", "0.5E-2"],
+          invalide: ["12a", "45.", "`o8", "`oxG", "12.34e", "12.34E+"]
+        },
+        simulare: function(input) {
+          let state = 'q0', steps = [], valid = false, type = '', reason = '', i = 0;
+          if (input[0] === '{') {
+            state = 'q5';
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '{' --> <span class='state final'>q5</span></div>`);
+            i = 1;
+            while (i < input.length && input[i] !== '}') {
+              steps.push(`<div class='step'><span class='state final'>q5</span> -- '${input[i]}' --> <span class='state final'>q5</span></div>`);
+              i++;
+            }
+            if (input[i] === '}') {
+              steps.push(`<div class='step'><span class='state final'>q5</span> -- '}' --> <span class='state final'>q6</span></div>`);
+              state = 'q6';
+              i++;
+              valid = true;
+              type = 'COMENTARIU';
+            } else {
+              reason = "Comentariul nu se termină cu '}'.";
+              steps.push(`<div class='step'><span class='state final'>q5</span> -- '' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            if (i !== input.length) {
+              valid = false;
+              reason = "Există caractere suplimentare după comentariu.";
+              steps.push(`<div class='step'><span class='state final'>q6</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            return {valid: valid && type==='COMENTARIU', steps, reason: valid ? '' : reason, type: valid ? type : ''};
+          }
+          // CT_INT zecimal
+          if (/[1-9]/.test(input[0])) {
+            state = 'q1';
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '${input[0]}' --> <span class='state final'>q1</span></div>`);
+            i = 1;
+            while (i < input.length && /[0-9]/.test(input[i])) {
+              steps.push(`<div class='step'><span class='state final'>q1</span> -- '${input[i]}' --> <span class='state final'>q1</span></div>`);
+              i++;
+            }
+            if (i === input.length) {
+              valid = true;
+              type = 'CT_INT';
+            } else {
+              valid = false;
+              reason = "Există caractere suplimentare după constantă întreagă.";
+              steps.push(`<div class='step'><span class='state final'>q1</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            return {valid, steps, reason: valid ? '' : reason, type: valid ? type : ''};
+          }
+          // CT_INT octal
+          if (input[0] === '\x60' && input[1] === 'o') {
+            state = 'q2';
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '\x60' --> <span class='state final'>q2</span></div>`);
+            steps.push(`<div class='step'><span class='state final'>q2</span> -- 'o' --> <span class='state final'>q3</span></div>`);
+            i = 2;
+            while (i < input.length && /[0-7]/.test(input[i])) {
+              steps.push(`<div class='step'><span class='state final'>q3</span> -- '${input[i]}' --> <span class='state final'>q3</span></div>`);
+              i++;
+            }
+            if (i === input.length) {
+              valid = true;
+              type = 'CT_INT_OCT';
+            } else {
+              valid = false;
+              reason = "Există caractere suplimentare după constantă octală.";
+              steps.push(`<div class='step'><span class='state final'>q3</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            return {valid, steps, reason: valid ? '' : reason, type: valid ? type : ''};
+          }
+          // CT_INT hexazecimal
+          if (input[0] === '`' && input[1] === 'o' && input[2] === 'x') {
+            state = 'q4';
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '\`' --> <span class='state final'>q4</span></div>`);
+            steps.push(`<div class='step'><span class='state final'>q4</span> -- 'o' --> <span class='state final'>q5</span></div>`);
+            steps.push(`<div class='step'><span class='state final'>q5</span> -- 'x' --> <span class='state final'>q6</span></div>`);
+            i = 3;
+            while (i < input.length && /[0-9a-fA-F]/.test(input[i])) {
+              steps.push(`<div class='step'><span class='state final'>q6</span> -- '${input[i]}' --> <span class='state final'>q6</span></div>`);
+              i++;
+            }
+            if (i === input.length) {
+              valid = true;
+              type = 'CT_INT_HEX';
+            } else {
+              valid = false;
+              reason = "Există caractere suplimentare după constantă hexazecimală.";
+              steps.push(`<div class='step'><span class='state final'>q6</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            return {valid, steps, reason: valid ? '' : reason, type: valid ? type : ''};
+          }
+          // CT_REAL
+          if (/[0-9]/.test(input[0])) {
+            state = 'q7';
+            steps.push(`<div class='step'><span class='state active'>q0</span> -- '${input[0]}' --> <span class='state final'>q7</span></div>`);
+            i = 1;
+            while (i < input.length && /[0-9]/.test(input[i])) {
+              steps.push(`<div class='step'><span class='state final'>q7</span> -- '${input[i]}' --> <span class='state final'>q7</span></div>`);
+              i++;
+            }
+            if (input[i] === '.') {
+              steps.push(`<div class='step'><span class='state final'>q7</span> -- '.' --> <span class='state final'>q8</span></div>`);
+              state = 'q8';
+              i++;
+              while (i < input.length && /[0-9]/.test(input[i])) {
+                steps.push(`<div class='step'><span class='state final'>q8</span> -- '${input[i]}' --> <span class='state final'>q8</span></div>`);
+                i++;
+              }
+            }
+            if (input[i] === 'e' || input[i] === 'E') {
+              steps.push(`<div class='step'><span class='state final'>q8</span> -- '${input[i]}' --> <span class='state final'>q9</span></div>`);
+              state = 'q9';
+              i++;
+              if (input[i] === '+' || input[i] === '-') {
+                steps.push(`<div class='step'><span class='state final'>q9</span> -- '${input[i]}' --> <span class='state final'>q10</span></div>`);
+                state = 'q10';
+                i++;
+              }
+              while (i < input.length && /[0-9]/.test(input[i])) {
+                steps.push(`<div class='step'><span class='state final'>q10</span> -- '${input[i]}' --> <span class='state final'>q10</span></div>`);
+                i++;
+              }
+            }
+            if (i === input.length) {
+              valid = true;
+              type = 'CT_REAL';
+            } else {
+              valid = false;
+              reason = "Există caractere suplimentare după constantă reală.";
+              steps.push(`<div class='step'><span class='state final'>q8</span> -- '${input[i]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+            }
+            return {valid, steps, reason: valid ? '' : reason, type: valid ? type : ''};
+          }
+          reason = "Format necunoscut pentru constantă.";
+          steps.push(`<div class='step'><span class='state active'>q0</span> -- '${input[0]||""}' --> <span class='state error'>Eroare</span> (${reason})</div>`);
+          return {valid: false, steps, reason, type: ''};
+        }
+      },
+    };
+
+    function afiseazaExemple(ex) {
+      return `<b>Exemple valide:</b> <span style='color:green'>${ex.valide.join(', ')}</span><br><b>Exemple invalide:</b> <span style='color:red'>${ex.invalide.join(', ')}</span>`;
+    }
+
+    function simulate() {
+      const atom = document.getElementById('atomType').value;
+      const input = document.getElementById('input').value;
+      document.getElementById('regula').innerHTML = `<b>Regulă:</b> <code>${reguli[atom].descriere}</code>`;
+      document.getElementById('explicatie').innerHTML = `<b>Explicație:</b> ${reguli[atom].explicatie || ''}`;
+      document.getElementById('exemple').innerHTML = reguli[atom].exemplu ? afiseazaExemple(reguli[atom].exemplu) : '';
+      const {valid, steps, reason, type} = reguli[atom].simulare(input);
+      document.getElementById('result').innerHTML = valid ? `<b style='color:green'>Valid!${type ? ' ('+type+')' : ''}</b>` : `<b style='color:red'>Invalid!</b> <span style='color:#dc3545'>${reason||''}</span>`;
+      document.getElementById('steps').innerHTML = steps.join('');
+    }
+
+    // La schimbarea atomului, actualizează explicația și exemplele
+    document.getElementById('atomType').addEventListener('change', function() {
+      document.getElementById('regula').innerHTML = `<b>Regulă:</b> <code>${reguli[this.value].descriere}</code>`;
+      document.getElementById('explicatie').innerHTML = `<b>Explicație:</b> ${reguli[this.value].explicatie || ''}`;
+      document.getElementById('exemple').innerHTML = reguli[this.value].exemplu ? afiseazaExemple(reguli[this.value].exemplu) : '';
+      document.getElementById('result').innerHTML = '';
+      document.getElementById('steps').innerHTML = '';
+      document.getElementById('tema2-explicatii').style.display = 'none';
+    });
+
+    function showDiagram(atom) {
+      if(atom === 'TEMA2') {
+        document.getElementById('tema2-mermaid').style.display = '';
+        if(window.mermaid) mermaid.init(undefined, '#tema2-mermaid');
+        document.getElementById('btnExplicaTema2').style.display = '';
+        document.getElementById('diagram').innerHTML = '';
+      } else {
+        document.getElementById('tema2-mermaid').style.display = 'none';
+        document.getElementById('btnExplicaTema2').style.display = 'none';
+        document.getElementById('diagram').innerHTML = '';
+      }
+    }
+
+    document.getElementById('btnExplicaTema2').onclick = function() {
+      document.getElementById('tema2-explicatii').style.display = '';
+      document.getElementById('tema2-explicatii').innerHTML = `
+        <b>Explicații pentru Tema 2:</b><br>
+        <ul>
+          <li><b>CT_INT (zecimal):</b> începe cu 1-9, urmat de 0 sau mai multe cifre (0-9). Exemplu: 123, 5, 900.</li>
+          <li><b>CT_INT (octal):</b> începe cu <code>\`o</code> urmat de 0 sau mai multe cifre între 0-7. Exemplu: <code>\`o123</code>, <code>\`o0</code>.</li>
+          <li><b>CT_INT (hexazecimal):</b> începe cu <code>\`ox</code> urmat de 0 sau mai multe cifre între 0-9 sau litere a-f/A-F. Exemplu: <code>\`ox1A3</code>, <code>\`ox0</code>.</li>
+          <li><b>CT_REAL:</b> începe cu cifre, poate avea parte fracționară (punct și cifre), poate avea exponent (e/E urmat de semn opțional și cifre). Exemplu: 12.34, 1e10, 0.5E-2.</li>
+        </ul>
+        <b>Pași de construcție:</b>
+        <ol>
+          <li>Starea q0 este inițială. Din q0, dacă citești 1-9, mergi pe ramura zecimală. Dacă citești <code>\`o</code>, mergi pe ramura octală. Dacă citești <code>\`ox</code>, mergi pe ramura hexazecimală. Dacă citești 0-9, mergi pe ramura reală.</li>
+          <li>Pentru zecimal, citești cifre până la altceva, apoi finalizezi ca INT.</li>
+          <li>Pentru octal, citești cifre 0-7 până la altceva, apoi finalizezi ca INT octal.</li>
+          <li>Pentru hexazecimal, citești cifre/litere hex până la altceva, apoi finalizezi ca INT hexazecimal.</li>
+          <li>Pentru real, după cifre poți avea punct și alte cifre, apoi opțional exponent (e/E, semn, cifre).</li>
+        </ol>
+        <b>Exemple de input:</b>
+        <ul>
+          <li><code>123</code> &rarr; CT_INT (zecimal)</li>
+          <li><code>\`o77</code> &rarr; CT_INT (octal)</li>
+          <li><code>\`ox1F</code> &rarr; CT_INT (hexazecimal)</li>
+          <li><code>12.34</code> &rarr; CT_REAL</li>
+          <li><code>1e10</code> &rarr; CT_REAL</li>
+          <li><code>0.5E-2</code> &rarr; CT_REAL</li>
+        </ul>
+      `;
+    };
+
+    const select = document.getElementById('atomType');
+    select.addEventListener('change', function() {
+      document.getElementById('regula').innerHTML = `<b>Regulă:</b> <code>${reguli[this.value].descriere}</code>`;
+      document.getElementById('explicatie').innerHTML = `<b>Explicație:</b> ${reguli[this.value].explicatie || ''}`;
+      document.getElementById('exemple').innerHTML = reguli[this.value].exemplu ? afiseazaExemple(reguli[this.value].exemplu) : '';
+      document.getElementById('result').innerHTML = '';
+      document.getElementById('steps').innerHTML = '';
+      document.getElementById('tema2-explicatii').style.display = 'none';
+      showDiagram(this.value);
+    });
+
+    showDiagram(select.value);
+</script>
+<!-- Diagrama pentru Tema 2 (inițial ascunsă) -->
+<pre id="tema2-mermaid" class="mermaid" style="display:none; margin:30px 0;">
+stateDiagram-v2
+    q0 --> q1: 1-9 zecimal
+    q1 --> q1: 0-9
+    q1 --> CT_INT_DEC: altceva
+    q0 --> q2: o octal
+    q2 --> q3: 0-7
+    q3 --> q3: 0-7
+    q3 --> CT_INT_OCT: altceva
+    q0 --> q4: ox hex
+    q4 --> q5: 0-9_a-f_A-F
+    q5 --> q5: 0-9_a-f_A-F
+    q5 --> CT_INT_HEX: altceva
+    q0 --> q6: 0-9 real
+    q6 --> q6: 0-9
+    q6 --> q7: punct
+    q7 --> q8: 0-9
+    q8 --> q8: 0-9
+    q6 --> q9: exp
+    q8 --> q9: exp
+    q9 --> q10: semn
+    q10 --> q11: 0-9
+    q11 --> q11: 0-9
+    q11 --> CT_REAL: altceva
+    q8 --> CT_REAL: altceva
+    q6 --> CT_INT_DEC: altceva
+</pre>
+<!-- Mermaid.js pentru diagrame -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<div id="diagram" style="margin:30px 0;"></div>
+
+<script>
+function showDiagram(atom) {
+  if(atom === 'TEMA2') {
+    document.getElementById('tema2-mermaid').style.display = '';
+    if(window.mermaid) mermaid.init(undefined, '#tema2-mermaid');
+    document.getElementById('btnExplicaTema2').style.display = '';
+    document.getElementById('diagram').innerHTML = '';
+  } else {
+    document.getElementById('tema2-mermaid').style.display = 'none';
+    document.getElementById('btnExplicaTema2').style.display = 'none';
+    document.getElementById('diagram').innerHTML = '';
+  }
+}
+
+select.addEventListener('change', function() {
+  // ...existing code...
+  document.getElementById('tema2-explicatii').style.display = 'none';
+  showDiagram(this.value);
+});
+
+showDiagram(select.value);
+  </script>
+</body>
 </html>
