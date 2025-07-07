@@ -1,1 +1,51 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestionare Ture Angajați</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body style="display:none;">
+  <script>
+    // Redirect to login if not logged in as admin (executat cât mai devreme)
+    if (!localStorage.getItem('adminLoggedIn')) {
+      window.location.replace('login.html');
+    } else {
+      document.body.style.display = '';
+    }
+  </script>
+  <div class="sidebar">
+    <h2>C&A</h2>
+    <button id="addEmployeeBtn">Adaugă angajat</button>
+    <button id="tasksBtn" class="sidebar-btn" style="margin-top:12px;">Add Task</button>
+    <div id="employeeList"></div>
+  </div>
+  <div class="main">
+    <div id="toolbarContainer"></div>
+    <div class="calendar-header" style="display:flex;align-items:center;justify-content:center;gap:0;width:100%;margin-bottom:18px;">
+      <button id="prevWeekBtn" title="Săptămâna anterioară" style="font-size:1.5em;margin-right:32px;background:none;border:none;cursor:pointer;padding:8px 18px;">&#8592;</button>
+      <span id="weekInterval" style="font-size:1.1em;font-weight:500;color:#223046;background:none;padding:0 18px;min-width:260px;text-align:center;display:inline-block;"></span>
+      <button id="nextWeekBtn" title="Săptămâna următoare" style="font-size:1.5em;margin-left:32px;background:none;border:none;cursor:pointer;padding:8px 18px;">&#8594;</button>
+    </div>
+    <div id="calendar"></div>
+    <div id="statisticsPanel" style="margin-top: 20px;"></div>
+  </div>
 
+  <!-- Modal pentru detalii angajat (vizualizare + buton Editează) - generat dinamic de JS -->
+  <div class="modal-backdrop" style="display:none;"></div>
+  
+  <!-- Modalele pentru ture sunt generate dinamic de app.js! Nu adăuga aici! -->
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="utils.js"></script>
+  <script src="getWeekIntervalLabel.js"></script>
+  <script src="app.js"></script>
+  <script src="toolbar.js"></script>
+  <script src="statistics.js"></script>
+  <script src="todo.js"></script>
+</body>
+</html>
