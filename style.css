@@ -1,0 +1,1599 @@
+/* --- PREMIUM STATS LAYOUT --- */
+.premium-stats {
+  background: #f8fafc;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px #0001;
+  padding: 36px 36px 32px 36px;
+  max-width: 900px;
+  margin: 32px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.stats-header {
+  margin-bottom: 12px;
+}
+.stats-header h1 {
+  font-size: 1.6em;
+  font-weight: 700;
+  color: #223046;
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+}
+.stats-desc {
+  color: #4f5b6b;
+  font-size: 1.08em;
+  margin: 0 0 8px 36px;
+}
+.stats-main-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  width: 100%;
+}
+.stats-main-left, .stats-main-right {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 1 1 0;
+}
+.stats-main-left { min-width: 340px; }
+.stats-main-right { min-width: 340px; }
+.stats-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px #0001;
+  padding: 20px 18px 16px 18px;
+  border: 1px solid #e3e7ef;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stats-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.stats-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px #0001;
+}
+.stats-title {
+  font-size: 1.15em;
+  color: #223046;
+  font-weight: 600;
+  margin: 0;
+}
+.stats-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+  background: #fff;
+}
+.stats-table th, .stats-table td {
+  border: 1px solid #e3e7ef;
+  padding: 7px 10px;
+  text-align: center;
+  font-size: 1em;
+  transition: background 0.2s;
+}
+.stats-table th {
+  background: #f4f6fb;
+  color: #223046;
+  font-weight: 600;
+}
+.stats-table tr:hover td {
+  background: #f0f4fa;
+}
+@media (max-width: 1100px) {
+  .premium-stats { max-width: 99vw; padding: 18px 2vw 18px 2vw; }
+  .stats-main-grid { flex-direction: column; gap: 18px; }
+  .stats-main-left, .stats-main-right { min-width: 0; }
+}
+@media (max-width: 700px) {
+  .premium-stats { padding: 8px 0 8px 0; }
+  .stats-header h1 { font-size: 1.1em; }
+  .stats-title { font-size: 0.98em; }
+  .stats-card { padding: 8px 2vw 6px 2vw; border-radius: 8px; }
+  .stats-main-grid { gap: 8px; }
+}
+@media (max-width: 900px) {
+  .stats-section {
+    max-width: 100vw;
+    padding: 0 2vw;
+  }
+  .stats-card {
+    width: 100% !important;
+    min-width: 0;
+    padding: 10px 1vw 8px 1vw;
+    box-sizing: border-box;
+  }
+  .stats-table-container {
+    padding: 0;
+  }
+  .stats-table th, .stats-table td {
+    font-size: 0.95em;
+    padding: 5px 4px;
+  }
+}
+@media (max-width: 600px) {
+  .stats-section {
+    gap: 16px;
+    padding: 0 1vw;
+  }
+  .stats-card {
+    padding: 6px 0 6px 0;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px #0001;
+  }
+  .stats-title {
+    font-size: 1em;
+    margin-bottom: 10px;
+  }
+  .stats-table th, .stats-table td {
+    font-size: 0.92em;
+    padding: 3px 2px;
+  }
+}
+/* --- STATISTICI AVANSATE (statistics.js) --- */
+/* --- STATISTICI AVANSATE (statistics.js) --- */
+/* --- STATISTICI AVANSATE (statistics.js) --- */
+.stats-section {
+  max-width: 900px;
+  margin: 32px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  align-items: flex-start;
+  padding: 24px 24px 32px 24px;
+  box-sizing: border-box;
+  border-radius: 18px;
+  background: #f8fafc;
+  box-shadow: 0 4px 32px #0001;
+}
+.stats-row-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px 18px;
+  width: 100%;
+  justify-content: flex-start;
+  align-items: flex-start;
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0;
+}
+.stats-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px #0001;
+  padding: 20px 16px 16px 16px;
+  margin: 0 24px 24px 0;
+  width: 100%;
+  max-width: 400px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  border: 1px solid #e3e7ef;
+}
+.stats-title {
+  text-align: center;
+  font-size: 1.18em;
+  color: #223046;
+  margin-bottom: 18px;
+}
+.stats-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+.stats-table th, .stats-table td {
+  border: 1px solid #e3e7ef;
+  padding: 7px 10px;
+  text-align: center;
+  font-size: 1em;
+}
+.stats-table th {
+  background: #f4f6fb;
+  color: #223046;
+}
+.stats-table td {
+  background: #fff;
+}
+@media (max-width: 1200px) {
+  .stats-section, .stats-row-flex {
+    max-width: 98vw;
+    padding: 0 1vw;
+  }
+  .stats-card {
+    max-width: 98vw;
+    min-width: 0;
+    margin: 0 auto 18px auto;
+  }
+}
+@media (max-width: 900px) {
+  .stats-section {
+    padding: 0 1vw;
+    gap: 18px;
+  }
+  .stats-row-flex {
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+  .stats-card {
+    max-width: 99vw;
+    min-width: 0;
+    width: 100%;
+    margin: 0 auto 14px auto;
+  }
+}
+@media (max-width: 700px) {
+  .stats-section { gap: 10px; padding: 0 1vw; }
+  .stats-row-flex { gap: 8px; }
+  .stats-card { padding: 8px 1vw 6px 1vw; border-radius: 8px; box-shadow: 0 1px 4px #0001; }
+  .stats-title { font-size: 0.98em; margin-bottom: 8px; }
+  .stats-table th, .stats-table td { font-size: 0.9em; padding: 2px 1px; }
+}
+.personal-stats-panel {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px #0003, 0 1.5px 8px #0001;
+  max-width: 95vw;
+  width: 370px;
+  margin: 0 auto;
+  padding: 32px 22px 22px 22px;
+  position: relative;
+  animation: fadeInStatsPanel 0.25s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.personal-stats-panel h2 {
+  font-size: 1.25em;
+  margin: 0 0 18px 0;
+  text-align: center;
+  color: #223046;
+}
+.personal-stats-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+  font-size: 1.05em;
+  align-items: center;
+}
+.personal-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+.personal-stats-table th, .personal-stats-table td {
+  border: 1px solid #e3e7ef;
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 0.98em;
+}
+.personal-stats-table th {
+  background: #f4f6fb;
+  color: #223046;
+}
+.personal-stats-table td {
+  background: #fff;
+}
+.personal-stats-panel .toolbar-btn {
+  display: block;
+  width: 100%;
+  margin: 0 auto;
+  padding: 10px 0;
+  border-radius: 8px;
+  background: #4285f4;
+  color: #fff;
+  border: none;
+  font-size: 1.08em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1.5px 8px #0001;
+  transition: background 0.18s;
+}
+.personal-stats-panel .toolbar-btn:hover {
+  background: #3367d6;
+}
+.personal-stats-panel .at-norma { color: #27ae60; font-weight: 600; }
+.personal-stats-panel .plus { color: #4285f4; font-weight: 600; }
+.personal-stats-panel .minus { color: #e74c3c; font-weight: 600; }
+@keyframes fadeInStatsPanel {
+  from { opacity: 0; transform: translateY(30px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+/* --- MOBILE & RESPONSIVE CALENDAR IMPROVEMENTS --- */
+@media (max-width: 900px) {
+  #calendar, .calendar-wrapper, .calendar-grid {
+    min-width: 320px !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    font-size: 0.85em !important;
+    box-sizing: border-box;
+  }
+  .calendar-grid {
+    grid-template-columns: 60px repeat(41, 1fr) !important;
+  }
+  .calendar-hour, .calendar-halfhour, .calendar-bar {
+    font-size: 0.85em !important;
+    padding: 0 2px !important;
+  }
+  .calendar-emp {
+    min-width: 48px !important;
+    max-width: 80px !important;
+    font-size: 0.85em !important;
+    padding-left: 2px !important;
+  }
+  .calendar-day {
+    font-size: 0.95em !important;
+    padding-left: 2px !important;
+  }
+}
+@media (max-width: 600px) {
+  #calendar, .calendar-wrapper, .calendar-grid {
+    min-width: 220px !important;
+    font-size: 0.7em !important;
+  }
+  .calendar-grid {
+    grid-template-columns: 36px repeat(41, 1fr) !important;
+  }
+  .calendar-hour, .calendar-halfhour, .calendar-bar {
+    font-size: 0.7em !important;
+    padding: 0 1px !important;
+  }
+  .calendar-emp {
+    min-width: 32px !important;
+    max-width: 60px !important;
+    font-size: 0.7em !important;
+    padding-left: 1px !important;
+  }
+  .calendar-day {
+    font-size: 0.8em !important;
+    padding-left: 1px !important;
+  }
+}
+/* Asigură scroll orizontal la orice zoom pe mobil */
+html, body {
+  width: 100vw;
+  overflow-x: auto;
+}
+/* Elimină bold-ul implicit pentru label-ul zilei când checkbox-ul este bifat */
+input[type='checkbox']:checked + label,
+input[type='checkbox'] + label {
+  font-weight: 400 !important;
+}
+/* Fix for perfectly round calendar task dot */
+.calendar-task-dot {
+  width: 13px !important;
+  height: 13px !important;
+  min-width: 13px !important;
+  min-height: 13px !important;
+  max-width: 13px !important;
+  max-height: 13px !important;
+  aspect-ratio: 1/1 !important;
+  border-radius: 50% !important;
+  display: inline-block !important;
+  box-sizing: border-box !important;
+}
+/* --- STATISTICS MODAL PANEL --- */
+#statisticsPanel {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  background: rgba(40, 48, 60, 0.32);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-width: 100vw;
+  transition: background 0.2s;
+}
+.personal-stats-panel {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px #0003, 0 1.5px 8px #0001;
+  max-width: 95vw;
+  width: 370px;
+  margin: 0 auto;
+  padding: 32px 22px 22px 22px;
+  position: relative;
+  animation: fadeInStatsPanel 0.25s;
+}
+.personal-stats-panel h2 {
+  font-size: 1.25em;
+  margin: 0 0 18px 0;
+  text-align: center;
+  color: #223046;
+}
+.personal-stats-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+  font-size: 1.05em;
+}
+.personal-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+.personal-stats-table th, .personal-stats-table td {
+  border: 1px solid #e3e7ef;
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 0.98em;
+}
+.personal-stats-table th {
+  background: #f4f6fb;
+  color: #223046;
+}
+.personal-stats-table td {
+  background: #fff;
+}
+.personal-stats-panel .toolbar-btn {
+  display: block;
+  width: 100%;
+  margin: 0 auto;
+  padding: 10px 0;
+  border-radius: 8px;
+  background: #4285f4;
+  color: #fff;
+  border: none;
+  font-size: 1.08em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1.5px 8px #0001;
+  transition: background 0.18s;
+}
+.personal-stats-panel .toolbar-btn:hover {
+  background: #3367d6;
+}
+.personal-stats-panel .at-norma { color: #27ae60; font-weight: 600; }
+.personal-stats-panel .plus { color: #4285f4; font-weight: 600; }
+.personal-stats-panel .minus { color: #e74c3c; font-weight: 600; }
+@keyframes fadeInStatsPanel {
+  from { opacity: 0; transform: translateY(30px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+/* --- UX Employee List for Task Modal --- */
+.ux-employee-list {
+  flex:2 1 220px;
+  min-width:120px;
+  max-height:120px;
+  overflow-y:auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 4px 0;
+}
+.ux-employee-group {
+  margin-bottom: 2px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.ux-employee-group:last-child {
+  border-bottom: none;
+}
+.ux-employee-group-title {
+  font-weight: 600;
+  font-size: 0.98em;
+  color: #223046;
+  margin-bottom: 2px;
+  margin-top: 2px;
+}
+.ux-employee-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.97em;
+  padding: 2px 0 2px 2px;
+  margin-bottom: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.ux-employee-item:hover {
+  background: #eaf6f3;
+}
+.ux-employee-item input[type="checkbox"] {
+  accent-color: #27ae60;
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+}
+.ux-employee-item span {
+  font-size: 1em;
+  color: #223046;
+}
+/* --- END UX Employee List --- */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6fa;
+}
+.sidebar {
+  width: 270px;
+  background: #223046;
+  color: #fff;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 20px 10px;
+  box-sizing: border-box;
+  overflow-y: auto; /* Permite scroll pe tot sidebar-ul */
+}
+.sidebar h2 {
+  margin-top: 0;
+}
+.sidebar button,
+#addEmployeeBtn,
+#tasksBtn {
+  width: 100%;
+  padding: 12px 0;
+  margin-bottom: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+#addEmployeeBtn {
+  background: #19c6a7;
+  color: #fff;
+}
+#tasksBtn {
+  background: #4285f4;
+  color: #fff;
+}
+#addEmployeeBtn:hover, #tasksBtn:hover {
+  filter: brightness(0.95);
+}
+#employeeList {
+  margin-top: 30px;
+  /* Asigură-te că nu forțează overflow separat */
+  /* overflow-y: unset; */
+}
+.main {
+  margin-left: 290px;
+  padding: 30px;
+}
+/* PATCH: calendar responsive, fără min-width/max-width/padding for user view */
+#calendar {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  margin-top: 20px;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 900px;
+  min-width: unset !important;
+  max-width: unset !important;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 !important;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background: none;
+  width: auto;
+  height: auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal[style*="display: block"] {
+  display: flex !important;
+}
+.modal-content {
+  background: #fff;
+  margin: 0;
+  box-shadow: 0 8px 32px #0003;
+  border-radius: 18px;
+  background: #fff;
+  min-width: 820px;
+  max-width: 950px;
+  max-height: 95vh;
+  overflow-y: auto;
+  padding: 32px 32px 24px 32px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.close {
+  color: #aaa;
+  position: absolute;
+  right: 20px;
+  top: 10px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 18px 24px;
+  margin-bottom: 18px;
+}
+.toolbar input[type="text"] {
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 15px;
+}
+.toolbar select {
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 15px;
+}
+.toolbar button {
+  background: #f4f6fa;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toolbar button:hover {
+  background: #e0e7ef;
+}
+
+/* style.css - calendar custom modern */
+/* Stil pentru două layere suprapuse: grid axă + grid bare */
+.calendar-wrapper {
+  position: relative;
+  width: 100%;
+  min-width: 1200px;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 120px repeat(41, 1fr); /* 7:00-24:00 cu sloturi de 30 min = 35 coloane */
+  grid-auto-rows: min-content;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  margin-top: 32px;
+  box-shadow: 0 2px 12px #0001;
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 1;
+  position: relative;
+}
+.calendar-bar {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  line-height: 28px !important;
+  font-size: 15px !important;
+  font-weight: 600;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  box-shadow: 0 2px 8px #0002;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  margin: 0 !important;
+  padding: 0 8px !important;
+}
+.calendar-day, .calendar-hour {
+  z-index: 1;
+  pointer-events: auto;
+}
+.calendar-bar.dragging, .calendar-bar.resizing {
+  opacity: 0.5;
+  outline: 2px dashed #007bff;
+  z-index: 10;
+  user-select: none;
+  transition: opacity 0.15s cubic-bezier(.4,2,.6,1), box-shadow 0.2s;
+  box-shadow: 0 4px 24px 0 #007bff33;
+}
+.calendar-bar.ghost-drag {
+  opacity: 0.7 !important;
+  background: #b3d4fc !important;
+  border: 2px dashed #007bff;
+  box-shadow: 0 8px 32px 0 #007bff55;
+  filter: none !important;
+  transition: none !important;
+  pointer-events: none;
+}
+
+/* --- Calendar vizual: îmbunătățiri UX/UI --- */
+/* 1. Delimitare vizuală clară între ore */
+.calendar-grid .calendar-halfhour {
+  border-right: 1px solid #e0e0e0;
+  background: #fcfcfc;
+  font-size: 10px;
+  color: #888;
+  height: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.calendar-grid .calendar-hour {
+  border-right: 2.5px solid #b0b0b0;
+  background: #f7fafc;
+  font-size: 10px;
+  color: #223046;
+  font-weight: bold;
+  height: 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+/* Linie verticală accentuată la fiecare oră fixă */
+.calendar-grid .calendar-cell:nth-child(2n+2) {
+  border-right: 2.5px solid #b0b0b0;
+}
+
+/* 3. Fonturi și spațiere header */
+.calendar-grid .calendar-hour {
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  background: #f7fafc;
+}
+
+/* 5. Sticky header pentru ore */
+.calendar-grid .calendar-hour, .calendar-grid .calendar-halfhour {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #f7fafc;
+  box-shadow: 0 2px 8px #0001;
+}
+.calendar-grid .calendar-halfhour {
+  position: sticky;
+  top: 32px; /* exact sub headerul cu ore */
+  z-index: 25;
+  background: #f7fafc;
+  box-shadow: 0 2px 8px #0001;
+  height: 24px !important;
+  min-height: 24px !important;
+  font-size: 13px !important;
+}
+
+/* 6. Fundal subtil pentru sloturile :30 */
+.calendar-grid .calendar-halfhour:nth-child(odd) {
+  background: #f7fafc;
+}
+.calendar-grid .calendar-halfhour:nth-child(even) {
+  background: #f0f4fa;
+}
+
+/* 7. Linii orizontale subțiri între zile */
+.calendar-grid .calendar-day {
+  border-top: 1.5px solid #e0e0e0;
+  background: #f7fafc;
+}
+.calendar-grid .calendar-cell {
+  border-top: 1px solid #e0e0e0;
+}
+
+/* 8. Ascunde orele foarte târzii (ex: 21:00-24:00) implicit, dar permite scroll */
+@media (min-width: 1200px) {
+  .calendar-grid {
+    max-width: 1600px;
+    overflow-x: auto;
+  }
+}
+
+/* --- END calendar vizual --- */
+
+@media (max-width: 900px) {
+  .calendar-grid { font-size: 12px; }
+  .calendar-hour, .calendar-day { font-size: 12px; }
+  .calendar-bar { font-size: 12px; padding: 0 8px; }
+}
+
+/* Animations for hover and click */
+button:hover, .calendar-bar:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease-in-out;
+}
+button:active, .calendar-bar:active {
+  transform: scale(0.95);
+}
+
+/* Highlight for selected shifts and current day */
+.calendar-bar.selected {
+  border: 2px solid #f39c12;
+  box-shadow: 0 0 10px #f39c12;
+}
+.calendar-day.current {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+
+/* Responsive design for mobile */
+@media (max-width: 768px) {
+  .calendar-grid {
+    grid-template-columns: 80px repeat(12, 1fr);
+  }
+  .calendar-hour {
+    font-size: 0.8em;
+  }
+  .calendar-bar {
+    font-size: 0.8em;
+    padding: 4px;
+  }
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  background: #f4f6fa;
+}
+::-webkit-scrollbar-thumb {
+  background: #e0e7ef;
+  border-radius: 8px;
+}
+
+/* Employee list styles */
+.employee-group {
+  max-height: 340px;
+  overflow-y: auto;
+  margin-bottom: 18px;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 8px 10px 10px 10px;
+  box-shadow: 0 1px 4px #0001;
+}
+.employee-group-title {
+  font-weight: bold;
+  font-size: 15px;
+  color: #2c3e50;
+  margin-bottom: 4px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.employee-list {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 0 0 0 4px;
+  margin: 0;
+  list-style: none;
+  max-width: 100%;
+}
+.employee-list li.employee-item {
+  background: #f4f8ff;
+  border: 1.5px solid #b6c6e3;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #0001;
+  padding: 10px 12px 8px 12px;
+  margin: 0;
+  font-size: 15px;
+  color: #223046;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, border 0.18s;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+  gap: 2px;
+  box-sizing: border-box;
+  word-break: break-word;
+}
+.employee-list .employee-main {
+  font-size: 15px;
+  font-weight: 500;
+  color: #223046;
+}
+.employee-list .employee-dept {
+  background: #e0e7ef;
+  color: #4f8cff;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin: 0;
+  letter-spacing: 0.5px;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+.employee-list li.employee-item.employee-green {
+  background: #e6f8ed;
+  border-color: #27ae60;
+}
+.employee-list li.employee-item.employee-blue {
+  background: #eaf2ff;
+  border-color: #4f8cff;
+}
+.employee-list li.employee-item.employee-purple {
+  background: #f3eaff;
+  border-color: #8e44ad;
+}
+.employee-list .employee-dept.dept-green {
+  background: #e6f8ed;
+  color: #218c53;
+  border: 1.5px solid #27ae60;
+}
+.employee-list .employee-dept.dept-blue {
+  background: #eaf2ff;
+  color: #2563b6;
+  border: 1.5px solid #4f8cff;
+}
+.employee-list .employee-dept.dept-purple {
+  background: #f3eaff;
+  color: #6c3483;
+  border: 1.5px solid #8e44ad;
+}
+
+/* --- CLEANUP & FIXES --- */
+/* 1. Eliminare .calendar-bars (nu mai este folosit) */
+.calendar-bars {
+  display: none !important;
+}
+/* 2. Calendar grid: asigură grid-template-columns corect pentru 41 sloturi (7:00-3:00, 30min) */
+.calendar-grid {
+  grid-template-columns: 120px repeat(41, 1fr) !important;
+}
+/* 3. Calendar cell: stil clar, fără suprapuneri, fără border dublu */
+.calendar-grid .calendar-cell {
+  min-height: 32px;
+  height: 32px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.calendar-grid .calendar-cell:hover {
+  background: #eaf6ff;
+}
+/* 4. Placeholder cell (dacă se folosește) */
+.calendar-grid .calendar-placeholder {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: none !important;
+  cursor: default !important;
+}
+/* 5. Calendar bar: padding și height consistente */
+.calendar-bar {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  line-height: 28px !important;
+  font-size: 13px !important;
+  font-weight: 600;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  box-shadow: 0 2px 8px #0002;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  margin: 0 !important;
+  padding: 0 8px !important;
+}
+/* 6. Eliminare margin-top/margin-bottom pe .calendar-bar (nu e nevoie la grid modern) */
+.calendar-bar {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+/* 7. Calendar day: padding și font clar */
+.calendar-day {
+  font-size: 1em;
+  font-weight: bold;
+  padding: 6px 12px 4px 16px;
+  background: #f8f8f8;
+  border-top: 2px solid #222;
+  letter-spacing: 0.5px;
+}
+
+/* Elimină forțarea înălțimii rândurilor de grid pentru a elimina spațul gol sub ultimele bare */
+.calendar-grid {
+  grid-auto-rows: min-content !important;
+}
+
+/* Asigură-te că nu există min-height/height pe .calendar-grid sau pe rândurile de grid */
+.calendar-grid .calendar-row, .calendar-grid .calendar-cell {
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+/* DEBUG: Bordură vizibilă pe fiecare rând de grid pentru identificare spațiu suplimentar */
+/* .calendar-grid > div[style*='grid-row'] {
+  outline: 1px dashed #bada55 !important;
+  position: relative;
+  overflow: hidden !important;
+} */
+
+/* Ultra-strict: elimină orice spațiu suplimentar din interiorul barelor de tură */
+.calendar-bar *, .calendar-bar span {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  line-height: 28px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  vertical-align: middle !important;
+  display: inline-block !important;
+}
+
+/* Allow label span inside .calendar-bar to wrap and show all labels */
+.calendar-bar span {
+  white-space: normal !important;
+  overflow: visible !important;
+  word-break: break-word !important;
+  display: inline-block !important;
+  max-width: 100%;
+}
+
+/* Premium shift modal styles */
+.shift-modal-premium {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(60,60,90,0.18), 0 1.5px 8px #0001;
+  padding: 0 0 18px 0;
+  width: 410px;
+  max-width: 96vw;
+  position: relative;
+  animation: modalPopIn 0.18s cubic-bezier(.4,2,.6,1);
+}
+@keyframes modalPopIn {
+  0% { transform: scale(0.97) translateY(30px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.shift-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 28px 10px 28px;
+  border-bottom: 1.5px solid #e6eaf0;
+}
+.shift-modal-icon {
+  font-size: 32px;
+  background: #f4f6fa;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4f8cff;
+}
+.shift-modal-title {
+  font-size: 1.25em;
+  font-weight: 700;
+  color: #223046;
+  margin-bottom: 2px;
+}
+.shift-modal-day {
+  font-size: 1em;
+  color: #4f8cff;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+.shift-modal-form {
+  padding: 18px 28px 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.shift-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1em;
+}
+.shift-modal-row label {
+  min-width: 110px;
+  color: #223046;
+  font-weight: 500;
+}
+.shift-modal-row input, .shift-modal-row select {
+  font-size: 1em;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1.5px solid #e0e7ef;
+  background: #f8fafc;
+  outline: none;
+  transition: border 0.18s;
+}
+.shift-modal-row input:focus, .shift-modal-row select:focus {
+  border: 1.5px solid #4f8cff;
+  background: #fff;
+}
+.shift-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+.shift-modal-save {
+  background: #1abc9c;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 22px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #0001;
+  transition: background 0.18s;
+}
+.shift-modal-save:hover {
+  background: #16a085;
+}
+.shift-modal-delete {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 18px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #0001;
+  transition: background 0.18s;
+}
+.shift-modal-delete:hover {
+  background: #c0392b;
+}
+.shift-modal-premium .close {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  font-size: 28px;
+  color: #aaa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.18s;
+}
+.shift-modal-premium .close:hover {
+  color: #e74c3c;
+}
+
+/* Premium employee modal styles (Add/Edit Employee) */
+.employee-modal-premium {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(60,60,90,0.18), 0 1.5px 8px #0001;
+  padding: 0 0 18px 0;
+  width: 410px;
+  max-width: 96vw;
+  position: relative;
+  animation: modalPopIn 0.18s cubic-bezier(.4,2,.6,1);
+}
+.employee-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 28px 10px 28px;
+  border-bottom: 1.5px solid #e6eaf0;
+}
+.employee-modal-icon {
+  font-size: 32px;
+  background: #f4f6fa;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1abc9c;
+}
+.employee-modal-title {
+  font-size: 1.25em;
+  font-weight: 700;
+  color: #223046;
+  margin-bottom: 2px;
+}
+.employee-modal-form {
+  padding: 18px 28px 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.employee-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1em;
+}
+.employee-modal-row label {
+  min-width: 110px;
+  color: #223046;
+  font-weight: 500;
+}
+.employee-modal-row input, .employee-modal-row select {
+  font-size: 1em;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1.5px solid #e0e7ef;
+  background: #f8fafc;
+  outline: none;
+  transition: border 0.18s;
+}
+.employee-modal-row input:focus, .employee-modal-row select:focus {
+  border: 1.5px solid #1abc9c;
+  background: #fff;
+}
+.employee-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+.employee-modal-save {
+  background: #1abc9c;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 22px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #0001;
+  transition: background 0.18s;
+}
+.employee-modal-save:hover {
+  background: #16a085;
+}
+.employee-modal-cancel {
+  background: #e0e7ef;
+  color: #223046;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 18px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px #0001;
+  transition: background 0.18s;
+}
+.employee-modal-cancel:hover {
+  background: #d1d5db;
+}
+.employee-modal-premium .close {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  font-size: 28px;
+  color: #aaa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.18s;
+}
+.employee-modal-premium .close:hover {
+  color: #e74c3c;
+}
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(30, 34, 45, 0.18);
+  backdrop-filter: blur(7px);
+  z-index: 999;
+  pointer-events: auto;
+  transition: opacity 0.2s;
+  opacity: 1;
+}
+
+.modal[style*="display: block"] ~ .modal-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Stil pentru checkboxuri zile pe un singur rând */
+.shift-modal-form .shift-modal-row.days-row {
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-x: visible !important;
+  margin-bottom: 8px;
+}
+.shift-modal-form .days-row label {
+  min-width: unset;
+  margin-right: 0;
+  white-space: nowrap;
+  font-size: 1.13em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 0 2px;
+}
+.shift-modal-form .days-row label:first-child {
+  font-weight: 600;
+  color: #222;
+  margin-right: 10px;
+  font-size: 1.12em;
+}
+
+/* Stiluri pentru containerul zilelor */
+#massShiftDaysContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#massShiftDaysContainer label {
+  font-weight: normal;
+}
+
+/* --- MINIMALIST WEEK NAVIGATION --- */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  margin-bottom: 18px;
+}
+#prevWeekBtn, #nextWeekBtn {
+  background: none;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.5em;
+  font-weight: 600;
+  color: #223046;
+  padding: 8px 18px;
+  margin: 0 32px;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  outline: none;
+  box-shadow: none;
+  position: static;
+}
+#prevWeekBtn:hover, #nextWeekBtn:hover {
+  background: #f4f6fa;
+  color: #1abc9c;
+}
+#weekInterval {
+  font-size: 1.1em;
+  font-weight: 500;
+  color: #223046;
+  background: none;
+  border-radius: 0;
+  padding: 0 18px;
+  min-width: 260px;
+  text-align: center;
+  display: inline-block;
+  box-shadow: none;
+  margin: 0;
+}
+/* --- END MINIMALIST WEEK NAVIGATION --- */
+
+/* Premium styling for statistics section */
+.stats-section {
+  max-width: 820px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 38px;
+  align-items: center;
+}
+
+.stats-summary {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  align-items: flex-start;
+  background: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.stats-summary div {
+  flex: 1;
+}
+
+.stats-summary canvas {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Enhanced table styling */
+.stats-table {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  border-collapse: collapse;
+  font-family: 'Arial', sans-serif;
+  font-size: 0.9em;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.stats-table th, .stats-table td {
+  padding: 16px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.stats-table th {
+  background: #f4f4f4;
+  font-weight: bold;
+}
+
+.stats-table tr:hover {
+  background: #f1f1f1;
+}
+
+.stats-section h2 {
+  font-size: 1.35em;
+  font-weight: 700;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+canvas {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Sticky stacked header pentru calendar - corectare overflow */
+#calendar {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 900px; /* calendar mai înalt */
+  min-width: 1200px;
+  margin: 0 auto 24px auto;
+  padding: 0; /* elimin paddingul vertical pentru ca headerul să fie lipit de marginea de sus */
+}
+.calendar-wrapper {
+  width: fit-content !important;
+  min-width: 0 !important;
+  max-width: unset !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+.calendar-grid {
+  overflow: unset !important;
+  min-width: unset !important;
+  max-width: unset !important;
+  width: fit-content !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+.calendar-grid .calendar-hour {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: #f7fafc;
+  box-shadow: 0 2px 8px #0001;
+  height: 32px !important;
+  min-height: 32px !important;
+  font-size: 15px !important;
+  padding-top: 2px;
+}
+.calendar-grid .calendar-halfhour {
+  position: sticky;
+  top: 32px; /* exact sub headerul cu ore */
+  z-index: 25;
+  background: #f7fafc;
+  box-shadow: 0 2px 8px #0001;
+  height: 24px !important;
+  min-height: 24px !important;
+  font-size: 13px !important;
+}
+
+/* --- RESPONSIVE CALENDAR --- */
+#calendar,
+.calendar-wrapper,
+.calendar-grid {
+  min-width: 900px !important;
+  max-width: 100vw !important;
+  width: 100%;
+}
+@media (max-width: 1200px) {
+  .calendar-wrapper, .calendar-grid, #calendar {
+    min-width: 600px !important;
+    max-width: 100vw !important;
+    font-size: 0.95em;
+  }
+  .calendar-grid {
+    grid-template-columns: 90px repeat(41, 1fr) !important;
+  }
+  .calendar-hour, .calendar-halfhour, .calendar-bar {
+    font-size: 0.95em !important;
+  }
+}
+@media (max-width: 900px) {
+  .calendar-wrapper, .calendar-grid, #calendar {
+    min-width: 400px !important;
+    font-size: 0.85em;
+  }
+  .calendar-grid {
+    grid-template-columns: 60px repeat(41, 1fr) !important;
+  }
+  .calendar-hour, .calendar-halfhour, .calendar-bar {
+    font-size: 0.85em !important;
+    padding: 0 4px !important;
+  }
+}
+@media (max-width: 600px) {
+  .calendar-wrapper, .calendar-grid, #calendar {
+    min-width: 320px !important;
+    font-size: 0.7em;
+  }
+  .calendar-grid {
+    grid-template-columns: 40px repeat(41, 1fr) !important;
+  }
+  .calendar-hour, .calendar-halfhour, .calendar-bar {
+    font-size: 0.7em !important;
+    padding: 0 2px !important;
+  }
+}
+/* Asigură scroll orizontal la orice zoom */
+#calendar, .calendar-wrapper, .calendar-grid {
+  overflow-x: auto !important;
+}
+.calendar-tasks {
+  margin: 2px 0 0 0;
+  padding: 0 0 0 8px;
+  list-style: none;
+  font-size: 0.97em;
+}
+.calendar-task {
+  color: #4285f4;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.calendar-task-more {
+  color: #888;
+  cursor: pointer;
+  font-style: italic;
+}
+
+.calendar-bar.responsabil-inventar {
+  background-color: #e74c3c !important; /* Red color for inventory responsibility */
+  color: #fff !important; /* Ensure text is readable */
+}

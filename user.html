@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendar Utilizator</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { background: #f8f9fa; margin: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+    /* Eliminăm lățimea fixă/maximă și paddingul containerului pentru calendar */
+    #calendarContainer {
+      width: fit-content;
+      min-width: 0;
+      margin: 40px auto 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px #0001;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    #toolbarContainer { margin-bottom: 24px; }
+</style>
+<style>
+  /* Optimizare bara albastră cu taskuri (calendar-day-label) pentru lizibilitate și spațiere premium */
+  .calendar-day-label {
+    font-size: 0.95em !important;
+    padding: 6px 10px !important;
+    gap: 8px !important;
+    line-height: 1.35 !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+  @media (max-width: 600px) {
+    .calendar-day-label {
+      font-size: 0.88em !important;
+      padding: 4px 6px !important;
+      gap: 4px !important;
+    }
+    .calendar-tasks {
+      font-size: 0.88em !important;
+    }
+  }
+  .calendar-tasks {
+    margin: 0 0 0 6px !important;
+    gap: 2px !important;
+    padding: 0 !important;
+    list-style: none !important;
+    word-break: break-word !important;
+  }
+  .calendar-task {
+    margin-bottom: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .calendar-task:last-child {
+    margin-bottom: 0 !important;
+  }
+  .calendar-task-dot {
+    min-width: 13px !important;
+    min-height: 13px !important;
+    width: 13px !important;
+    height: 13px !important;
+    margin-right: 4px !important;
+    border-radius: 50% !important;
+    display: inline-block !important;
+    box-sizing: border-box !important;
+    border: 2px solid #fff !important;
+    background: #4285f4 !important;
+  }
+</style>
+</head>
+<body>
+  <!-- Layout nou, mobile-first, pentru calendar utilizator -->
+  <main id="userMobileCalendar">
+    <header class="mobile-toolbar" style="position:sticky;top:0;z-index:10;background:#fff;display:flex;align-items:center;justify-content:center;gap:0;padding:10px 0 8px 0;border-bottom:1px solid #e3e7ef;">
+      <div style="display:flex;align-items:center;gap:0;background:#f4f6fb;border-radius:32px;padding:4px 12px;box-shadow:0 2px 8px #0001;">
+        <button id="userPrevWeekBtn" class="mobile-nav-btn" style="font-size:1.5em;padding:8px 18px;border-radius:50%;border:none;background:#fff;color:#222;cursor:pointer;box-shadow:0 1px 4px #0001;transition:background 0.2s;outline:none;margin-right:8px;">‹</button>
+        <span id="userCurrentWeekLabel" class="mobile-week-label" style="min-width:120px;text-align:center;font-weight:700;font-size:1.15em;color:#333;letter-spacing:0.5px;">Săptămâna</span>
+        <button id="userNextWeekBtn" class="mobile-nav-btn" style="font-size:1.5em;padding:8px 18px;border-radius:50%;border:none;background:#fff;color:#222;cursor:pointer;box-shadow:0 1px 4px #0001;transition:background 0.2s;outline:none;margin-left:8px;">›</button>
+      </div>
+    </header>
+    <section class="mobile-filters" style="display:flex;gap:10px;padding:14px 0 14px 0;align-items:center;justify-content:center;">
+      <div style="flex:2;position:relative;">
+        <input type="search" id="userSearchInput" class="mobile-input" placeholder="Caută angajat..." style="width:100%;padding:12px 44px 12px 16px;border-radius:12px;border:none;background:#f4f6fb;font-size:1.08em;box-shadow:0 2px 8px #0001;outline:none;transition:box-shadow 0.2s;" />
+        <svg style="position:absolute;right:16px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.6;" width="20" height="20" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="7"/><line x1="16" y1="16" x2="13.5" y2="13.5"/></svg>
+      </div>
+      <div style="flex:1;position:relative;">
+        <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.7;z-index:2;" width="18" height="18" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="14" y2="7"/><line x1="6" y1="11" x2="12" y2="11"/><line x1="8" y1="15" x2="10" y2="15"/></svg>
+        <select id="userGroupSelect" class="mobile-select" style="width:100%;padding:12px 36px 12px 36px;border-radius:12px;border:none;background:#f4f6fb;font-size:0.98em;box-shadow:0 2px 8px #0001;appearance:none;outline:none;transition:box-shadow 0.2s;cursor:pointer;max-width:100vw;">
+          <option value="">All</option>
+          <option value="parter">Parter</option>
+          <option value="etaj">Etaj</option>
+          <option value="management">Management</option>
+          <option value="extern">Emblema</option>
+        </select>
+        <svg style="position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:0.7;z-index:2;" width="18" height="18" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 8 9 13 14 8"/></svg>
+      </div>
+    </section>
+    <section id="userCalendar" style="min-height:200px;"></section>
+    <div id="statisticsPanel" style="display:none;"></div>
+  </main>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="utils.js"></script>
+  <script src="toolbar.js"></script>
+  <script>
+    // Inițializare de siguranță pentru DAYS și HOURS dacă nu există deja
+    // Folosește exact aceleași chei ca în Firestore/app.js/todo.js (fără diacritice!)
+    if (!window.DAYS) window.DAYS = [
+      'Luni', 'Marti', 'Miercuri', 'Joi', 'Vineri', 'Sambata', 'Duminica'
+    ];
+    // Eliminăm orice inițializare locală a HOURS pentru a folosi doar array-ul generat din utils.js
+    if (window.HOURS) {
+      // Curăță orice sloturi după 22:30, dacă există
+      window.HOURS = window.HOURS.filter(hh => {
+        const [h, m] = hh.split(":").map(Number);
+        return (h > 5 && (h < 22 || (h === 22 && m <= 30)));
+      });
+    }
+
+    // === INITIALIZE FIREBASE HERE ===
+    // Înlocuiește cu datele tale din Firebase Console
+    if (!firebase.apps.length) {
+      firebase.initializeApp({
+        apiKey: "AIzaSyDNsrhAMusAUgy-BbuUDL6P59aG8ikpAKg",
+        authDomain: "catimetable.firebaseapp.com",
+        projectId: "catimetable",
+        storageBucket: "catimetable.appspot.com",
+        messagingSenderId: "645967863163",
+        appId: "1:645967863163:web:cfd3a3b5b00e70a5d171de",
+        measurementId: "G-8V5HKBGNRR"
+      });
+    }
+  </script>
+  <script src="user-mobile-calendar.js"></script>
+</body>
+</body>
+<script src="statistics.js"></script>
+</html>

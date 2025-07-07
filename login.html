@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <!-- Firebase config/init -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script>
+    // Config real Firebase - completat conform instrucțiunilor
+    // Pentru Firebase JS SDK v7.20.0 și mai nou, measurementId este opțional
+    const firebaseConfig = {
+      apiKey: "AIzaSyDNsrhAMusAUgy-BbuUDL6P59aG8ikpAKg",
+      authDomain: "catimetable.firebaseapp.com",
+      projectId: "catimetable",
+      storageBucket: "catimetable.firebasestorage.app",
+      messagingSenderId: "645967863163",
+      appId: "1:645967863163:web:cfd3a3b5b00e70a5d171de",
+      measurementId: "G-8V5HKBGNRR"
+    };
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Administrator</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f4f7fb; }
+    .login-container {
+      background: #fff; border-radius: 16px; box-shadow: 0 4px 32px #0001; padding: 40px 32px; max-width: 340px; width: 100%;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .login-container h2 { margin-bottom: 24px; color: #223046; }
+    .login-container input {
+      width: 100%; padding: 12px 14px; margin-bottom: 18px; border: 1px solid #cfd8dc; border-radius: 8px; font-size: 1.1em;
+    }
+    .login-container button {
+      width: 100%; padding: 12px; background: #4f8cff; color: #fff; border: none; border-radius: 8px; font-size: 1.1em; cursor: pointer;
+      transition: background 0.18s;
+    }
+    .login-container button:hover { background: #223046; }
+    .login-error { color: #e74c3c; margin-bottom: 12px; font-size: 1em; display: none; }
+  </style>
+</head>
+<body>
+  <form class="login-container" id="adminLoginForm" autocomplete="off">
+    <h2>Autentificare Admin</h2>
+    <div class="login-error" id="loginError">Utilizator sau parolă greșită!</div>
+    <input type="text" id="username" placeholder="Utilizator" required autofocus autocomplete="off">
+    <input type="password" id="password" placeholder="Parolă" required autocomplete="off">
+    <button type="submit">Login</button>
+  </form>
+
+
+  <script>
+
+
+    // Autentificare cu Firestore (users collection)
+    document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const user = document.getElementById('username').value.trim().toLowerCase();
+      const pass = document.getElementById('password').value;
+      try {
+        const db = firebase.firestore();
+        const q = await db.collection('users')
+          .where('username', '==', user)
+          .where('password', '==', pass)
+          .get();
+        if (!q.empty) {
+          localStorage.setItem('adminLoggedIn', '1');
+          window.location.href = 'index.html';
+        } else {
+          document.getElementById('loginError').style.display = 'block';
+        }
+      } catch (err) {
+        document.getElementById('loginError').textContent = 'Eroare conexiune autentificare!';
+        document.getElementById('loginError').style.display = 'block';
+      }
+    });
+
+
+  </script>
+</body>
+</html>
