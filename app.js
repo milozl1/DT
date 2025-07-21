@@ -57,6 +57,26 @@ function renderCustomCalendarForWeek(container, db, weekKey) {
     for (const day of DAYS) {
       validShiftsByDay[day] = (shiftsByDay[day] || []).filter(s => s && typeof s === 'object' && s.startHour !== undefined && s.endHour !== undefined);
     }
+
+    // --- Fetch leaves for the week ---
+    let leavesForWeek = [];
+    if (window.LeaveManager) {
+      await window.LeaveManager.fetchLeaves(db);
+      leavesForWeek = window.LeaveManager.leaves.filter(leave => leave.weekKey === weekKey);
+    }
+
+    // --- Fetch employees for leave bars ---
+    const employeesSnap = await db.collection('employees').get();
+    const employeesMap = {};
+    employeesSnap.forEach(doc => {
+      employeesMap[doc.id] = doc.data();
+    });
+
+    // --- Assign globals for statistics.js ---
+    window.employees = Object.entries(employeesMap).map(([id, data]) => ({ id, ...data }));
+    window.weekShifts = shifts;
+    window.leavesForWeek = leavesForWeek;
+
     // --- Fetch tasks for the week (for task dot logic) ---
     let tasks = (window.getTasksForWeek ? await window.getTasksForWeek(weekKey) : (typeof getTasksForWeek !== 'undefined' ? await getTasksForWeek(weekKey) : {})) || {};
     // --- Sticky stacked header: headerul cu ore și jumătăți de oră sunt primele două rânduri ---
@@ -68,8 +88,25 @@ function renderCustomCalendarForWeek(container, db, weekKey) {
       gridRows.push(40);
       barGridRows.push({ type: 'day', row: rowIdx, day });
       rowIdx++;
+      // --- Concedii pe rânduri separate ---
+      const leavesForDay = leavesForWeek.filter(leave => leave.days && leave.days.includes(day));
+      for (const leave of leavesForDay) {
+        const employee = employeesMap[leave.employeeId];
+        if (employee) {
+          gridRows.push(28);
+          barGridRows.push({
+            type: 'leave',
+            row: rowIdx,
+            day,
+            employeeId: leave.employeeId,
+            employee,
+            leave
+          });
+          rowIdx++;
+        }
+      }
+      // --- Ture ---
       const shiftsForDay = validShiftsByDay[day].slice();
-      // Sortează întâi după locație: Parter, Etaj, restul, apoi după ora de start
       shiftsForDay.sort((a, b) => {
         const locOrder = (loc) => loc === 'Parter' ? 0 : loc === 'Etaj' ? 1 : 2;
         const locA = locOrder(a.location);
@@ -80,11 +117,20 @@ function renderCustomCalendarForWeek(container, db, weekKey) {
         return aStart - bStart;
       });
       for (let i = 0; i < shiftsForDay.length; i++) {
+        const shift = shiftsForDay[i];
+        let displayName = '';
+        if (typeof employeesMap !== 'undefined' && shift.employeeId && employeesMap[shift.employeeId]) {
+          const emp = employeesMap[shift.employeeId];
+          displayName = `${emp.lastName || ''} ${emp.firstName || ''}`;
+        } else {
+          displayName = 'undefined';
+        }
         gridRows.push(28);
-        barGridRows.push({ type: 'shift', row: rowIdx, day, shift: shiftsForDay[i] });
+        barGridRows.push({ type: 'shift', row: rowIdx, day, shift, displayName });
         rowIdx++;
       }
     }
+    
     html += `<div class='calendar-grid' style='display: grid; grid-template-columns: 120px repeat(${HOURS.length}, 1fr);'>`;
     // Colțul stânga sus (gol, nu afectează sticky)
     html += `<div class='calendar-corner' style='grid-row: 1; grid-column: 1;'></div>`;
@@ -102,7 +148,16 @@ function renderCustomCalendarForWeek(container, db, weekKey) {
     // Zile și bare de tură (încep de la grid-row: 3)
     for (const bar of barGridRows) {
       if (bar.type === 'day') {
-        html += `<div class='calendar-day' data-day='${bar.day}' style='grid-row: ${bar.row}; grid-column: 1 / span ${HOURS.length+1}; border-top: 2px solid #222; background: #f8f8f8; font-size: 1em; padding: 6px 12px 4px 16px; letter-spacing: 0.5px;'>${bar.day}</div>`;
+        // ...ziua, ca înainte...
+        const leavesForDay = leavesForWeek.filter(leave => leave.days && leave.days.includes(bar.day));
+        let leaveIndicator = '';
+        if (leavesForDay.length > 0) {
+          leaveIndicator = ` <span style="color: #ff6b35; font-weight: bold;" title="${leavesForDay.length} angajat(i) în concediu">🏖️ ${leavesForDay.length}</span>`;
+        }
+        html += `<div class='calendar-day' data-day='${bar.day}' style='grid-row: ${bar.row}; grid-column: 1 / span ${HOURS.length+1}; border-top: 2px solid #222; background: #f8f8f8; font-size: 1em; padding: 6px 12px 4px 16px; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;'><span>${bar.day}</span>${leaveIndicator}</div>`;
+      } else if (bar.type === 'leave') {
+        // --- Bară concediu pe rând separat ---
+        html += `<div class='calendar-leave-bar' data-employee-id='${bar.employeeId}' onclick='openEmployeeLeaveModal("${bar.employeeId}", ${JSON.stringify(bar.employee).replace(/"/g, "&quot;")})' style='grid-row:${bar.row}; grid-column:2 / span ${HOURS.length}; height:100%; background:rgba(255,107,53,0.12); border:2px dashed #ff6b35; display:flex; align-items:center; justify-content:space-between; border-radius:8px; color:#ff6b35; font-weight:bold; font-size:13px; z-index:1; cursor:pointer; margin:1px; padding:0 12px; transition:all 0.2s;'>\n          <span style='text-align:left;line-height:1.2;flex:1;'>${bar.employee.lastName} ${bar.employee.firstName} - CONCEDIU 🏖️</span>\n          <span style='text-align:right;font-size:11px;color:#e65100;'>${bar.employee.norma ? Math.round((parseFloat(bar.employee.norma)/5)*10)/10 + 'h' : ''}</span>\n        </div>`;
       } else if (bar.type === 'shift') {
         const shift = bar.shift;
         const startIdx = HOURS.findIndex(hh => {
@@ -135,6 +190,14 @@ function renderCustomCalendarForWeek(container, db, weekKey) {
           extraLabels += ' (DESCHIDERE/INCHIDERE)';
         }
         shift.name += extraLabels;
+        
+        // --- LEAVE INDICATOR ---
+        let leaveIndicator = '';
+        if (window.LeaveManager && shift.employeeId && window.LeaveManager.isOnLeave(shift.employeeId, weekKey, bar.day)) {
+          leaveIndicator = ' 🏖️';
+          barColor = '#ff6b35'; // Orange pentru concediu
+        }
+        
         let totalMinutes = (shift.endHour * 60 + (shift.endMinute || 0)) - (shift.startHour * 60 + (shift.startMinute || 0));
         if (totalMinutes < 0) totalMinutes += 24 * 60;
         let displayHours = totalMinutes / 60;
@@ -169,7 +232,49 @@ function renderCustomCalendarForWeek(container, db, weekKey) {
             data-department='${shift.department || ''}'
             data-location='${shift.location || 'Implicit'}'
             style='grid-row: ${bar.row}; grid-column: ${startIdx + 2} / ${endIdx + 2}; height: 100%; background: ${barColor}; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #fff; font-weight: bold; box-shadow: 0 2px 8px #0002; z-index: 2; cursor: pointer; margin: 0; padding: 0;'>
-            <span style='position:relative;min-height:10px;line-height:10px;'>${taskDot}${shift.name} ${String(shift.startHour).padStart(2, '0')}:${String(shift.startMinute||0).padStart(2, '0')}-${String(shift.endHour).padStart(2, '0')}:${String(shift.endMinute||0).padStart(2, '0')}${shift.location ? (shift.location !== 'Implicit' ? ', ' + shift.location : '') : ''} ${oreText}</span>
+            <span style='position:relative;min-height:10px;line-height:10px;'>${taskDot}${bar.displayName} ${String(shift.startHour).padStart(2, '0')}:${String(shift.startMinute||0).padStart(2, '0')}-${String(shift.endHour).padStart(2, '0')}:${String(shift.endMinute||0).padStart(2, '0')}${shift.location ? (shift.location !== 'Implicit' ? ', ' + shift.location : '') : ''} ${oreText}${leaveIndicator}</span>
+          </div>`;
+        continue;
+      } else if (bar.type === 'leave') {
+        // --- LEAVE BAR PE ZIUA CORECTĂ ---
+        const employee = bar.employee;
+        const day = bar.day;
+        // Calculează norma zilnică (împărțit la 5 zile lucrătoare)
+        let norma = parseFloat(employee.norma);
+        let dailyNorm = '';
+        if (!isNaN(norma) && norma > 0) {
+          let val = Math.round((norma / 5) * 10) / 10;
+          // Dacă e întreagă, afișează fără zecimale
+          dailyNorm = (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + 'h';
+        }
+        html += `<div class='calendar-leave-bar' 
+            data-employee-id='${bar.employeeId}'
+            onclick='openEmployeeLeaveModal("${bar.employeeId}", ${JSON.stringify(employee).replace(/"/g, "&quot;")})'
+            style='grid-row: ${bar.row}; grid-column: 2 / span ${HOURS.length}; 
+                   height: 100%; 
+                   background: rgba(255, 107, 53, 0.1); 
+                   border: 2px dashed #ff6b35; 
+                   display: flex; 
+                   align-items: center; 
+                   justify-content: space-between; 
+                   border-radius: 8px; 
+                   color: #ff6b35; 
+                   font-weight: bold; 
+                   font-size: 12px;
+                   z-index: 1; 
+                   cursor: pointer;
+                   margin: 1px;
+                   padding: 0 12px;
+                   transition: all 0.2s ease;'
+            onmouseover='this.style.background="rgba(255, 107, 53, 0.2)"; this.style.transform="scale(1.01)";'
+            onmouseout='this.style.background="rgba(255, 107, 53, 0.1)"; this.style.transform="scale(1)";'
+            title='Click pentru gestionare concediu - ${day}'>
+            <span style='text-align: left; line-height: 1.2; flex: 1;'>
+              ${employee.lastName} ${employee.firstName} - CONCEDIU 🏖️
+            </span>
+            <span style='text-align: right; font-size: 10px; color: #e65100;'>
+              ${dailyNorm ? dailyNorm : ''}
+            </span>
           </div>`;
         continue;
       }
@@ -180,7 +285,7 @@ function renderCustomCalendarForWeek(container, db, weekKey) {
     // --- Populează asincron taskurile pe zi ---
     (async function() {
       let weekKey = window.getWeekKey ? window.getWeekKey(window.currentMonday) : (typeof getWeekKey !== 'undefined' ? getWeekKey(window.currentMonday) : '');
-      let tasks = (window.getTasksForWeek ? await window.getTasksForWeek(weekKey) : (typeof getTasksForWeek !== 'undefined' ? await getTasksForWeek(weekKey) : {})) || {};
+      let tasks = (window.getTasksForWeek ? await window.getTasksForWeek(weekKey) : (typeof getTasksForWeek !== 'undefined' ? getTasksForWeek(weekKey) : {})) || {};
       // Define the same palette for task colors
       const taskColors = [
         '#FF9800','#F44336','#FFC107','#795548','#00B8D4','#FFB300','#D84315','#607D8B','#8D6E63','#C0CA33','#E91E63','#A1887F','#B0BEC5','#FF7043','#FFD600','#B71C1C','#FF6F00','#5D4037','#0097A7','#F06292'
@@ -271,6 +376,33 @@ function renderCustomCalendar(container, db) {
         rowIdx++;
       }
     }
+    
+    // --- Adaugă barele de concediu după turele normale ---
+    // Grupează concediile pe angajați
+    const leavesByEmployee = {};
+    leavesForWeek.forEach(leave => {
+      if (!leavesByEmployee[leave.employeeId]) {
+        leavesByEmployee[leave.employeeId] = [];
+      }
+      leavesByEmployee[leave.employeeId].push(leave);
+    });
+    
+    // Adaugă rând pentru fiecare angajat cu concediu
+    Object.keys(leavesByEmployee).forEach(employeeId => {
+      const employee = employeesMap[employeeId];
+      if (employee) {
+        gridRows.push(32); // Înălțime pentru bara de concediu
+        barGridRows.push({ 
+          type: 'leave', 
+          row: rowIdx, 
+          employeeId, 
+          employee, 
+          leaves: leavesByEmployee[employeeId] 
+        });
+        rowIdx++;
+      }
+    });
+    
     html += `<div class='calendar-grid' style='display: grid; grid-template-columns: 120px repeat(${HOURS.length}, 1fr);'>`;
     html += `<div class='calendar-corner' style='grid-row: 1; grid-column: 1;'></div>`;
     for (let i = 0; i < HOURS.length; i += 2) {
@@ -294,7 +426,7 @@ function renderCustomCalendar(container, db) {
           let shown = dayTasks.slice(0,3);
           taskHtml = `<ul class='calendar-tasks' style='margin:2px 0 0 0;padding:0 0 0 8px;list-style:none;font-size:0.97em;'>` +
             shown.map((t,i) => {
-              const color = taskColors[i % taskColors.length];
+              const color = t.color || taskColors[i % taskColors.length];
               return `<li class='calendar-task' style='color:${color};display:flex;align-items:center;gap:4px;'><span style='display:inline-block;width:11px;height:11px;aspect-ratio:1/1;border-radius:50%;background:${color};margin-right:5px;vertical-align:middle;border:1.5px solid #fff;box-shadow:0 1px 3px #0001;flex-shrink:0;'></span> <span style='${t.done ? 'text-decoration:line-through;color:#aaa;' : ''}'>${t.text}</span></li>`;
             }).join('') +
             (dayTasks.length > 3 ? `<li class='calendar-task calendar-task-more' style='color:#888;cursor:pointer;' onclick='window.renderWeeklyTasksModal && window.renderWeeklyTasksModal()'>+ alte ${dayTasks.length-3}</li>` : '') +
@@ -367,6 +499,58 @@ function renderCustomCalendar(container, db) {
             style='grid-row: ${bar.row}; grid-column: ${startIdx + 2} / ${endIdx + 2}; height: 100%; background: ${barColor}; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #fff; font-weight: bold; box-shadow: 0 2px 8px #0002; z-index: 2; cursor: pointer; margin: 0; padding: 0;'>
             <span style='position:relative;min-height:16px;line-height:16px;'>${taskDot}${shift.name} ${String(shift.startHour).padStart(2, '0')}:${String(shift.startMinute||0).padStart(2, '0')}-${String(shift.endHour).padStart(2, '0')}:${String(shift.endMinute||0).padStart(2, '0')}${shift.location ? (shift.location !== 'Implicit' ? ', ' + shift.location : '') : ''} ${oreText}</span>
           </div>`;
+        continue;
+      } else if (bar.type === 'leave') {
+        // --- LEAVE BAR ---
+        const employee = bar.employee;
+        const leaves = bar.leaves;
+        
+        // Grupează concediile pe zile pentru această săptămână
+        const leaveDaysByDay = {};
+        leaves.forEach(leave => {
+          if (leave.days && Array.isArray(leave.days)) {
+            leave.days.forEach(day => {
+              if (DAYS.includes(day)) {
+                leaveDaysByDay[day] = true;
+              }
+            });
+          }
+        });
+        
+        // Creează o singură bară pentru toată săptămâna cu informații despre zilele de concediu
+        const leaveDaysForWeek = Object.keys(leaveDaysByDay);
+        if (leaveDaysForWeek.length > 0) {
+          // Afișează bara pe toată lățimea calendarului
+          html += `<div class='calendar-leave-bar' 
+              data-employee-id='${bar.employeeId}'
+              onclick='openEmployeeLeaveModal("${bar.employeeId}", ${JSON.stringify(employee).replace(/"/g, "&quot;")})'
+              style='grid-row: ${bar.row}; grid-column: 2 / span ${HOURS.length}; 
+                     height: 100%; 
+                     background: rgba(255, 107, 53, 0.1); 
+                     border: 2px dashed #ff6b35; 
+                     display: flex; 
+                     align-items: center; 
+                     justify-content: space-between; 
+                     border-radius: 8px; 
+                     color: #ff6b35; 
+                     font-weight: bold; 
+                     font-size: 12px;
+                     z-index: 1; 
+                     cursor: pointer;
+                     margin: 1px;
+                     padding: 0 12px;
+                     transition: all 0.2s ease;'
+              onmouseover='this.style.background="rgba(255, 107, 53, 0.2)"; this.style.transform="scale(1.01)";'
+              onmouseout='this.style.background="rgba(255, 107, 53, 0.1)"; this.style.transform="scale(1)";'
+              title='Click pentru gestionare concediu - ${leaveDaysForWeek.join(", ")}'>
+              <span style='text-align: left; line-height: 1.2; flex: 1;'>
+                ${employee.lastName} ${employee.firstName} - CONCEDIU 🏖️
+              </span>
+              <span style='text-align: right; font-size: 10px; color: #e65100;'>
+                ${leaveDaysForWeek.join(", ")}
+              </span>
+            </div>`;
+        }
         continue;
       }
     }
@@ -447,7 +631,6 @@ function openShiftEditModal(shift) {
   document.getElementById('editShiftLocation').value = shift.location || 'Implicit';
   showModalWithBackdrop(modal);
   modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
-  window.onclick = (event) => { if (event.target == modal) hideModalWithBackdrop(modal); };
   document.getElementById('shiftEditForm').onsubmit = async function(e) {
     e.preventDefault();
     const id = document.getElementById('editShiftId').value;
@@ -499,217 +682,6 @@ function openShiftEditModal(shift) {
     }
   };
 }
-
-// Utilitar pentru a afișa/ascunde backdrop cu blur pentru orice modal
-function showModalWithBackdrop(modal) {
-  let backdrop = document.querySelector('.modal-backdrop');
-  if (!backdrop) {
-    backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop';
-    document.body.appendChild(backdrop);
-  }
-  backdrop.style.display = 'block';
-  modal.style.display = 'block';
-  backdrop.onclick = () => { hideModalWithBackdrop(modal); };
-}
-function hideModalWithBackdrop(modal) {
-  modal.style.display = 'none';
-  const backdrop = document.querySelector('.modal-backdrop');
-  if (backdrop) backdrop.style.display = 'none';
-}
-
-function renderEmployeeList(container, db, weekKeyOverride) {
-  console.log('renderEmployeeList called');
-  // Preia weekKey-ul săptămânii afișate
-  let monday = window.currentMonday || getMondayOf(new Date());
-  let weekKey = weekKeyOverride || getWeekKey(monday);
-  // Preia toate turele pentru săptămâna curentă
-  db.collection("shifts").where('weekKey', '==', weekKey).get().then(shiftSnap => {
-    const shifts = [];
-    shiftSnap.forEach(doc => shifts.push({ ...doc.data(), id: doc.id }));
-    db.collection("employees").get().then(querySnapshot => {
-      const employees = [];
-      querySnapshot.forEach(doc => employees.push({ ...doc.data(), id: doc.id }));
-      const { groups, empIdMap, empHours } = getEmployeeGroupsAndHours(shifts, employees);
-      let html = '';
-      for (const group of ['Parter', 'Etaj', 'Management', 'Externi']) {
-        html += `<div class='employee-group'><div class='employee-group-title'>${group}</div>`;
-        if (groups[group] && groups[group].length > 0) {
-          html += '<ul class="employee-list">';
-          for (const emp of groups[group]) {
-            let deptClass = '';
-            if (group === 'Parter') deptClass = 'dept-green';
-            else if (group === 'Etaj') deptClass = 'dept-blue';
-            else if (group === 'Management') deptClass = 'dept-purple';
-            else if (group === 'Externi') deptClass = 'dept-orange';
-            let ore = empHours[emp.id] ? empHours[emp.id] : 0;
-            let norma = parseFloat(emp.norma);
-            let isComplete = !isNaN(norma) && ore >= norma;
-            let checkMark = isComplete ? `<span class='employee-complete' title='Norma completă' style='color:#27ae60;font-size:1.2em;margin-left:8px;'>✔️</span>` : '';
-            let oreText = `<span class='employee-hours' style='color:#888; font-size:0.95em;'>${ore}h</span>`;
-            html += `<li class="employee-item" data-empid="${emp.id}">
-              <div class="employee-main-row">${emp.lastName} ${emp.firstName} <span style='color:#aaa'>(${emp.norma})</span></div>
-              <div class="employee-info-row"><span class="employee-dept ${deptClass}">${emp.department}</span> ${oreText}${checkMark}</div>
-            </li>`;
-          }
-          html += '</ul>';
-        } else {
-          html += '<div class="employee-empty">(niciun angajat)</div>';
-        }
-        html += '</div>';
-      }
-      container.innerHTML = html;
-      container.querySelectorAll('.employee-item').forEach(li => {
-        li.addEventListener('click', function() {
-          openEmployeeDetailsModal(this.dataset.empid, empIdMap[this.dataset.empid]);
-        });
-      });
-    }).catch(err => {
-      alert('Eroare la încărcarea angajaților: ' + err.message);
-    });
-  }).catch(err => {
-    alert('Eroare la încărcarea turelor: ' + err.message);
-  });
-}
-
-// Funcție globală pentru actualizarea listei de angajați la schimbarea săptămânii
-window.updateEmployeeListForWeek = function(weekKey) {
-  const employeeList = document.getElementById('employeeList');
-  if (employeeList) renderEmployeeList(employeeList, db, weekKey);
-}
-
-// Actualizează lista de angajați pentru o anumită săptămână (weekKey)
-function updateEmployeeListForWeek(weekKey) {
-  const employeeList = document.getElementById('employeeList');
-  if (!employeeList) return;
-  // Preia toate turele DOAR pentru weekKey dat
-  db.collection("shifts").where('weekKey', '==', weekKey).get().then(shiftSnap => {
-    const shifts = [];
-    shiftSnap.forEach(doc => shifts.push({ ...doc.data(), id: doc.id }));
-    db.collection("employees").get().then(querySnapshot => {
-      const employees = [];
-      querySnapshot.forEach(doc => employees.push({ ...doc.data(), id: doc.id }));
-      const { groups, empIdMap, empHours } = getEmployeeGroupsAndHours(shifts, employees);
-      let html = '';
-      for (const group of ['Parter', 'Etaj', 'Management']) {
-        html += `<div class='employee-group'><div class='employee-group-title'>${group}</div>`;
-        if (groups[group].length > 0) {
-          html += '<ul class="employee-list">';
-          for (const emp of groups[group]) {
-            let deptClass = '';
-            if (group === 'Parter') deptClass = 'dept-green';
-            else if (group === 'Etaj') deptClass = 'dept-blue';
-            else if (group === 'Management') deptClass = 'dept-purple';
-            let ore = empHours[emp.id] ? empHours[emp.id] : 0;
-            let norma = parseFloat(emp.norma);
-            let isComplete = !isNaN(norma) && ore >= norma;
-            let checkMark = isComplete ? `<span class='employee-complete' title='Norma completă' style='color:#27ae60;font-size:1.2em;margin-left:8px;'>✔️</span>` : '';
-            let oreText = `<span class='employee-hours' style='color:#888; font-size:0.95em;'>${ore}h</span>`;
-            html += `<li class="employee-item" data-empid="${emp.id}">
-              <div class="employee-main-row">${emp.lastName} ${emp.firstName} <span style='color:#aaa'>(${emp.norma})</span></div>
-              <div class="employee-info-row"><span class="employee-dept ${deptClass}">${emp.department}</span> ${oreText}${checkMark}</div>
-            </li>`;
-          }
-          html += '</ul>';
-        } else {
-          html += '<div class="employee-empty">(niciun angajat)</div>';
-        }
-        html += '</div>';
-      }
-      employeeList.innerHTML = html;
-      employeeList.querySelectorAll('.employee-item').forEach(li => {
-        li.addEventListener('click', function() {
-          openEmployeeDetailsModal(this.dataset.empid, empIdMap[this.dataset.empid]);
-        });
-      });
-    }).catch(err => {
-      alert('Eroare la încărcarea angajaților: ' + err.message);
-    });
-  }).catch(err => {
-    alert('Eroare la încărcarea turelor: ' + err.message);
-  });
-}
-
-// Modal detalii angajat (vizualizare + buton Editează + buton Adaugă tură)
-function openEmployeeDetailsModal(empId, empData) {
-  let modal = document.getElementById('employeeDetailsModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'employeeDetailsModal';
-    modal.className = 'modal';
-    document.body.appendChild(modal);
-  }
-  modal.innerHTML = `
-    <div class="modal-content shift-modal-premium">
-      <button class="close" aria-label="Închide">&times;</button>
-      <div class="shift-modal-header">
-        <div class="shift-modal-icon"><span>👤</span></div>
-        <div>
-          <div class="shift-modal-title">${empData.lastName} ${empData.firstName}</div>
-          <div class="shift-modal-day">${empData.department} | Norma: ${empData.norma}</div>
-        </div>
-      </div>
-      <div class="shift-modal-actions" style="margin-top:18px;display:flex;gap:12px;justify-content: center;">
-        <button id="editEmployeeBtn" class="shift-modal-save" style="min-width:110px;padding:10px 0;font-size:1em;">Editează</button>
-        <button id="addShiftForEmployeeBtn" class="shift-modal-save" style="background:#4f8cff;min-width:100px;padding:10px 0;font-size:1em;">Adaugă tură</button>
-        <button id="deleteEmployeeBtn" class="shift-modal-delete" style="background:#e74c3c;min-width:100px;padding:10px 0;font-size:1em;">Șterge</button>
-      </div>
-    </div>
-  `;
-  modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
-  window.onclick = (event) => { if (event.target == modal) hideModalWithBackdrop(modal); };
-  // Buton Editează (corectat: fallback la openAddEmployeeModal dacă openEditEmployeeModal nu există)
-  const editBtn = document.getElementById('editEmployeeBtn');
-  if (editBtn) {
-    editBtn.onclick = function() {
-      hideModalWithBackdrop(modal);
-      if (typeof window.openEditEmployeeModal === 'function') {
-        window.openEditEmployeeModal(empId, empData);
-      } else if (typeof window.openAddEmployeeModal === 'function') {
-        window.openAddEmployeeModal(empId, empData);
-      } else {
-        alert('Funcția de editare angajat nu este disponibilă! Contactați administratorul.');
-      }
-    };
-  }
-  // Buton Adaugă tură
-  const addShiftBtn = document.getElementById('addShiftForEmployeeBtn');
-  if (addShiftBtn) {
-    addShiftBtn.onclick = function() {
-      hideModalWithBackdrop(modal);
-      window.openAddShiftModal(empId);
-    };
-  }
-  const deleteBtn = document.getElementById('deleteEmployeeBtn');
-  if (deleteBtn) {
-    deleteBtn.onclick = async function() {
-      if (!confirm('Sigur vrei să ștergi acest angajat? Această acțiune este ireversibilă!')) return;
-      try {
-        await db.collection('employees').doc(empId).delete();
-        // Șterge și toate turele asociate angajatului
-        const shiftsSnap = await db.collection('shifts').where('employeeId', '==', empId).get();
-        const batch = db.batch();
-        shiftsSnap.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        hideModalWithBackdrop(modal);
-        const employeeList = document.getElementById('employeeList');
-        if (employeeList) renderEmployeeList(employeeList, db);
-        // --- MODIFICARE: reîncarcă calendarul pentru săptămâna activă ---
-        const calendar = document.getElementById('calendar');
-        let monday = window.currentMonday || getMondayOf(new Date());
-        let weekKey = getWeekKey(monday);
-        if (calendar && typeof renderCustomCalendarForWeek === 'function') {
-          renderCustomCalendarForWeek(calendar, db, weekKey);
-        }
-        alert('Angajatul și toate turele asociate au fost șterse!');
-      } catch (err) {
-        alert('Eroare la ștergerea angajatului: ' + err.message);
-      }
-    };
-  }
-  showModalWithBackdrop(modal);
-}
-window.openEmployeeDetailsModal = openEmployeeDetailsModal;
 
 // Modal pentru adăugare angajat
 function openAddEmployeeModal(empId, empData) {
@@ -786,7 +758,6 @@ function openAddEmployeeModal(empId, empData) {
   }
 
   modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
-  window.onclick = (event) => { if (event.target == modal) hideModalWithBackdrop(modal); };
 
   // Schimbă inputul de normă dacă se selectează Emblema
   document.getElementById('addDepartment').onchange = function() {
@@ -798,6 +769,7 @@ function openAddEmployeeModal(empId, empData) {
       document.getElementById('addNormaInput').style.display = 'none';
     }
   };
+
 
   document.getElementById('addEmployeeForm').onsubmit = async function(e) {
     e.preventDefault();
@@ -816,18 +788,51 @@ function openAddEmployeeModal(empId, empData) {
       return;
     }
 
+    // --- Username and password generation ---
+    function generateUsername(firstName, lastName) {
+      let base = (firstName[0] || '').toLowerCase() + (lastName || '').toLowerCase();
+      base = base.replace(/[^a-z0-9]/g, '');
+      return base;
+    }
+    function generatePassword() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+      let pass = '';
+      for (let i = 0; i < 6; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+      return pass;
+    }
+
     try {
       if (empId) {
-        // Actualizează angajatul existent
+        // Actualizează angajatul existent (nu schimba username/parola)
         await db.collection('employees').doc(empId).update({ lastName, firstName, norma, department });
+        hideModalWithBackdrop(modal);
+        const employeeList = document.getElementById('employeeList');
+        if (employeeList) renderEmployeeList(employeeList, db);
       } else {
-        // Adaugă un angajat nou
-        await db.collection('employees').add({ lastName, firstName, norma, department });
+        // Adaugă un angajat nou cu username și parolă
+        let username = generateUsername(firstName, lastName);
+        let password = generatePassword();
+        // Ensure username is unique
+        let exists = false;
+        let suffix = 1;
+        do {
+          const snapshot = await db.collection('employees').where('username', '==', username).get();
+          exists = !snapshot.empty;
+          if (exists) {
+            username = username + suffix;
+            suffix++;
+          }
+        } while (exists);
+        const newEmp = { lastName, firstName, norma, department, username, password };
+        await db.collection('employees').add(newEmp);
+        hideModalWithBackdrop(modal);
+        // Show credentials to admin
+        setTimeout(() => {
+          alert('Angajat adăugat!\n\nUsername: ' + username + '\nParolă: ' + password + '\n\nSalvează aceste date și comunică-le angajatului.');
+        }, 300);
+        const employeeList = document.getElementById('employeeList');
+        if (employeeList) renderEmployeeList(employeeList, db);
       }
-
-      hideModalWithBackdrop(modal);
-      const employeeList = document.getElementById('employeeList');
-      if (employeeList) renderEmployeeList(employeeList, db);
     } catch (err) {
       alert('Eroare la salvarea angajatului: ' + err.message);
     }
@@ -837,213 +842,366 @@ function openAddEmployeeModal(empId, empData) {
 }
 window.openAddEmployeeModal = openAddEmployeeModal;
 
-// Modifică openAddShiftModal să accepte empId opțional
-function openAddShiftModal(empId) {
-  let modal = document.getElementById('addShiftModal');
+// === GESTIONARE CONCEDII ===
+// Modal pentru gestionarea concediilor
+function openLeaveManagementModal() {
+  let modal = document.getElementById('leaveManagementModal');
   if (!modal) {
     modal = document.createElement('div');
-    modal.id = 'addShiftModal';
+    modal.id = 'leaveManagementModal';
     modal.className = 'modal';
     modal.innerHTML = `
-      <div class="modal-content shift-modal-premium">
+      <div class="modal-content shift-modal-premium" style="max-width: 800px;">
         <button class="close" aria-label="Închide">&times;</button>
         <div class="shift-modal-header">
-          <div class="shift-modal-icon"><span>🕒</span></div>
+          <div class="shift-modal-icon"><span>🏖️</span></div>
           <div>
-            <div class="shift-modal-title">Adaugă tură</div>
+            <div class="shift-modal-title">Gestionare Concedii</div>
+            <div class="shift-modal-subtitle">Adaugă și gestionează concediile angajaților</div>
           </div>
         </div>
-        <form id="addShiftDirectForm" class="shift-modal-form">
-          <div class="shift-modal-row" id="addShiftEmployeeRow"></div>
-          <div class="shift-modal-row days-row"><label>Zile:</label><span id="addShiftDaysContainer"></span></div>
-          <div class="shift-modal-row">
-            <label>Preset orar:</label>
-            <select id="addShiftPresetInterval">
-              <option value="">-- alege --</option>
-              <option value="08:00-17:00">08:00-17:00</option>
-              <option value="08:00-14:30">08:00-14:30</option>
-              <option value="10:00-14:00">10:00-14:00</option>
-              <option value="10:00-16:30">10:00-16:30</option>
-              <option value="10:00-19:00">10:00-19:00</option>
-              <option value="13:00-22:00">13:00-22:00</option>
-              <option value="15:30-22:00">15:30-22:00</option>
-              <option value="18:00-22:00">18:00-22:00</option>
-            </select>
+        <div class="shift-modal-form">
+          <!-- Secțiunea de adăugare concediu -->
+          <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 16px 0; color: #223046;">Adaugă concediu nou pentru săptămâna curentă</h3>
+            <div class="shift-modal-row">
+              <label>Angajat:</label>
+              <select id="leaveEmployeeSelect" required>
+                <option value="">Selectează angajat...</option>
+              </select>
+            </div>
+            <div class="shift-modal-row">
+              <label>Zile de concediu din săptămâna curentă:</label>
+              <div id="leaveDaysContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                <!-- Checkbox-uri pentru zile -->
+              </div>
+            </div>
+            <button id="addLeaveBtn" class="shift-modal-save" style="margin-top: 16px;">Adaugă concediu</button>
           </div>
-          <div class="shift-modal-row">
-            <label>Ora intrare:</label>
-            <select id="addShiftStartHour" required></select> : <select id="addShiftStartMinute" required></select>
+          
+          <!-- Secțiunea cu concediile existente -->
+          <div>
+            <h3 style="margin: 0 0 16px 0; color: #223046;">Concedii existente</h3>
+            <div id="existingLeavesContainer" style="max-height: 300px; overflow-y: auto;">
+              <!-- Lista concediilor -->
+            </div>
           </div>
-          <div class="shift-modal-row">
-            <label>Ora ieșire:</label>
-            <select id="addShiftEndHour" required></select> : <select id="addShiftEndMinute" required></select>
-          </div>
-          <div class="shift-modal-row">
-            <label for="addShiftLocation">Locație tură:</label>
-            <select id="addShiftLocation" required>
-              <option value="Implicit">Implicit</option>
-              <option value="Parter">Parter</option>
-              <option value="Etaj">Etaj</option>
-            </select>
-          </div>
-          <div class="shift-modal-row">
-            <label><input type="checkbox" id="addShiftResponsabil"> Responsabil deschidere/închidere/numărat case/acte/trezor</label>
-          </div>
-          <div class="shift-modal-row">
-            <label><input type="checkbox" id="addShiftResponsabilInventar"> Responsabil inventar</label>
-          </div>
-          <div class="shift-modal-actions">
-            <button type="submit" class="shift-modal-save">Adaugă tură</button>
-          </div>
-        </form>
+        </div>
       </div>
     `;
     document.body.appendChild(modal);
   }
-  // Populează dropdown-urile pentru ore și minute
-  function fillSelect(id, start, end, pad) {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    sel.innerHTML = '';
-    for (let i = start; i <= end; i++) {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = pad ? String(i).padStart(2, '0') : i;
-      sel.appendChild(opt);
-    }
-  }
-  fillSelect('addShiftStartHour', 7, 23, true);
-  fillSelect('addShiftEndHour', 8, 24, true);
-  fillSelect('addShiftStartMinute', 0, 59, true);
-  fillSelect('addShiftEndMinute', 0, 59, true);
 
-  // Înlocuiește dropdown-ul cu numele angajatului dacă empId este dat
-  const empRow = document.getElementById('addShiftEmployeeRow');
-  if (empId) {
-    db.collection('employees').doc(empId).get().then(doc => {
-      if (!doc.exists) {
-        empRow.innerHTML = '<span style="color:#e74c3c">Angajat inexistent!</span>';
-        return;
-      }
-      const d = doc.data();
-      empRow.innerHTML = `<label>Angajat:</label><span style="font-weight:500;font-size:1.08em;margin-left:8px;">${d.lastName} ${d.firstName} <span style='color:#888;font-size:0.95em;'>(${d.department})</span></span>`;
-      empRow.dataset.empid = empId;
+  // Populează dropdown-ul cu angajații
+  const employeeSelect = document.getElementById('leaveEmployeeSelect');
+  db.collection('employees').get().then(querySnapshot => {
+    employeeSelect.innerHTML = '<option value="">Selectează angajat...</option>';
+    // Grupare pe departamente
+    const departments = {};
+    querySnapshot.forEach(doc => {
+      const emp = doc.data();
+      const dept = emp.department || 'Fără departament';
+      if (!departments[dept]) departments[dept] = [];
+      departments[dept].push({ id: doc.id, ...emp });
     });
-  } else {
-    // Dacă nu e dat empId, folosește dropdown ca fallback
-    empRow.innerHTML = `<label>Angajat:</label><select id="addShiftEmployeeId" required><option value="">Se încarcă...</option></select>`;
-    const empSelect = document.getElementById('addShiftEmployeeId');
-    db.collection('employees').get().then(qs => {
-      empSelect.innerHTML = '<option value="">Alege angajat...</option>';
-      qs.forEach(doc => {
-        const d = doc.data();
-        const opt = document.createElement('option');
-        opt.value = doc.id;
-        opt.textContent = `${d.lastName} ${d.firstName} (${d.department})`;
-        empSelect.appendChild(opt);
+    // Ordinea dorită: Women, Men, Kids, Restul (alfabetic)
+    const specialOrder = ['Women', 'Men', 'Kids'];
+    const rest = Object.keys(departments).filter(d => !specialOrder.includes(d)).sort();
+    const ordered = [...specialOrder, ...rest];
+    ordered.forEach(dept => {
+      if (!departments[dept]) return;
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = dept;
+      departments[dept].sort((a, b) => (a.lastName + a.firstName).localeCompare(b.lastName + b.firstName));
+      departments[dept].forEach(emp => {
+        const option = document.createElement('option');
+        option.value = emp.id;
+        option.textContent = `${emp.lastName} ${emp.firstName}`;
+        optgroup.appendChild(option);
       });
+      employeeSelect.appendChild(optgroup);
     });
+  });
+
+  // Generează checkbox-urile pentru zile
+  const daysContainer = document.getElementById('leaveDaysContainer');
+  // Folosește DAYS global definit în utils.js pentru consistență
+  daysContainer.innerHTML = (window.DAYS || ['Luni', 'Marti', 'Miercuri', 'Joi', 'Vineri', 'Sambata', 'Duminica']).map(day => `
+    <label style="display: flex; align-items: center; gap: 6px; background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e3e7ef; cursor: pointer;">
+      <input type="checkbox" value="${day}" style="margin: 0;">
+      <span>${day}</span>
+    </label>
+  `).join('');
+
+  // Event listener pentru adăugarea concediului
+  const addLeaveBtn = document.getElementById('addLeaveBtn');
+  addLeaveBtn.onclick = async function() {
+    const employeeId = document.getElementById('leaveEmployeeSelect').value;
+    const selectedDays = Array.from(daysContainer.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+
+    if (!employeeId || selectedDays.length === 0) {
+      alert('Selectează un angajat și cel puțin o zi!');
+      return;
+    }
+
+    try {
+      // Folosește săptămâna curentă din calendar
+      let monday = window.currentMonday || (window.getMondayOf ? window.getMondayOf(new Date()) : new Date());
+      let weekKey = window.getWeekKey ? window.getWeekKey(monday) : (typeof getWeekKey !== 'undefined' ? getWeekKey(monday) : monday.toISOString().slice(0,10));
+      await window.LeaveManager.addLeave(db, employeeId, weekKey, selectedDays);
+      alert('Concediul a fost adăugat cu succes!');
+      // Reset form
+      document.getElementById('leaveEmployeeSelect').value = '';
+      daysContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      // Refresh lists
+      loadExistingLeaves();
+      // Refresh calendar pentru săptămâna curentă
+      const calendar = document.getElementById('calendar');
+      if (calendar) {
+        renderCustomCalendarForWeek(calendar, db, weekKey);
+      }
+    } catch (error) {
+      alert('Eroare la adăugarea concediului: ' + error.message);
+    }
+  };
+
+  // Funcție pentru încărcarea concediilor existente
+  async function loadExistingLeaves() {
+    const container = document.getElementById('existingLeavesContainer');
+    const leaves = await window.LeaveManager.fetchLeaves(db);
+    
+    if (leaves.length === 0) {
+      container.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Nu există concedii înregistrate</p>';
+      return;
+    }
+
+    // Grupează concediile pe angajați
+    const employeesMap = {};
+    const employeesSnap = await db.collection('employees').get();
+    employeesSnap.forEach(doc => {
+      employeesMap[doc.id] = doc.data();
+    });
+
+    container.innerHTML = leaves.map(leave => {
+      const emp = employeesMap[leave.employeeId];
+      const empName = emp ? `${emp.lastName} ${emp.firstName}` : 'Angajat necunoscut';
+      
+      return `
+        <div class="leave-item" style="background: #fff; border: 1px solid #e3e7ef; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
+            <strong>${empName}</strong>
+            <small style="color: #888;">${leave.weekKey}</small>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+            ${leave.days.map(day => `
+              <span class="day-tag" style="background: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; cursor: pointer;" 
+                    onclick="removeLeaveDay('${leave.employeeId}', '${leave.weekKey}', '${day}')"
+                    title="Click pentru a șterge">
+                ${day} ✕
+              </span>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
-  // Preset orar: la selectare, completează automat orele
-  const presetSelect = document.getElementById('addShiftPresetInterval');
-  if (presetSelect) {
-    presetSelect.onchange = function() {
-      if (!this.value) return;
-      const [start, end] = this.value.split('-');
-      const [sh, sm] = start.split(':').map(Number);
-      const [eh, em] = end.split(':').map(Number);
-      document.getElementById('addShiftStartHour').value = sh;
-      document.getElementById('addShiftStartMinute').value = sm;
-      document.getElementById('addShiftEndHour').value = eh;
-      document.getElementById('addShiftEndMinute').value = em;
-    };
-  }
+  // Funcție globală pentru ștergerea unei zile de concediu
+  window.removeLeaveDay = async function(employeeId, weekKey, day) {
+    if (!confirm(`Sigur vrei să ștergi ziua de ${day} din concediul angajatului?`)) return;
+    
+    try {
+      await window.LeaveManager.removeLeaveDay(employeeId, weekKey, day);
+      loadExistingLeaves();
+      
+      // Refresh calendar dacă e pentru săptămâna curentă
+      const calendar = document.getElementById('calendar');
+      if (calendar) {
+        let monday = window.currentMonday || getMondayOf(new Date());
+        let currentWeekKey = getWeekKey(monday);
+        renderCustomCalendarForWeek(calendar, db, currentWeekKey);
+      }
+    } catch (error) {
+      alert('Eroare la ștergerea zilei de concediu: ' + error.message);
+    }
+  };
+
+  // Încarcă concediile existente
+  loadExistingLeaves();
 
   modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
-  window.onclick = (event) => { if (event.target == modal) hideModalWithBackdrop(modal); };
-  document.getElementById('addShiftDirectForm').onsubmit = async function(e) {
-    e.preventDefault();
-    let empIdVal = empId;
-    if (!empIdVal) {
-      empIdVal = document.getElementById('addShiftEmployeeId').value;
-      if (!empIdVal) { alert('Selectează un angajat!'); return; }
-    }
-    // Preia zilele selectate
-    const days = Array.from(document.querySelectorAll('input[name="addShiftDays"]:checked')).map(cb => cb.value);
-    if (days.length === 0) { alert('Selectează cel puțin o zi!'); return; }
-    const startHour = parseInt(document.getElementById('addShiftStartHour').value);
-    const startMinute = parseInt(document.getElementById('addShiftStartMinute').value);
-    const endHour = parseInt(document.getElementById('addShiftEndHour').value);
-    const endMinute = parseInt(document.getElementById('addShiftEndMinute').value);
-    // Validare: ora de început și ora de sfârșit să nu fie identice
-    if (startHour === endHour && startMinute === endMinute) {
-      alert('Ora de început și ora de sfârșit nu pot fi identice!');
-      return;
-    }
-    let location = document.getElementById('addShiftLocation').value;
-    const isResponsabil = document.getElementById('addShiftResponsabil').checked;
-    const isResponsabilInventar = document.getElementById('addShiftResponsabilInventar').checked;
-    // Preia datele angajatului pentru nume, departament
-    const empDoc = await db.collection('employees').doc(empIdVal).get();
-    if (!empDoc.exists) {
-      alert('ID angajat invalid!');
-      return;
-    }
-    const emp = empDoc.data();
-    if (location === 'Implicit') {
-      if (emp.department === 'Women') location = 'Parter';
-      else if (emp.department === 'Men' || emp.department === 'Kids') location = 'Etaj';
-      else location = 'Implicit';
-    }
-    let monday = window.currentMonday || getMondayOf(new Date());
-    let weekKey = getWeekKey(monday);
-    let added = 0;
-    for (const day of days) {
-      // Verifică dacă există deja tură pentru acea zi și săptămână
-      const existingShiftsSnap = await db.collection('shifts')
-        .where('employeeId', '==', empIdVal)
-        .where('day', '==', day)
-        .where('weekKey', '==', weekKey)
-        .get();
-      if (!existingShiftsSnap.empty) continue;
-      await db.collection('shifts').add({
-        name: emp.lastName + ' ' + emp.firstName,
-        lastName: emp.lastName,
-        firstName: emp.firstName,
-        day,
-        startHour,
-        startMinute,
-        endHour,
-        endMinute,
-        department: emp.department,
-        employeeId: empIdVal,
-        location: location,
-        weekKey: weekKey,
-        isResponsabil: isResponsabil,
-        isResponsabilInventar: isResponsabilInventar
-      });
-      added++;
-    }
-    hideModalWithBackdrop(modal);
-    renderCustomCalendarForWeek(document.getElementById('calendar'), db, weekKey);
-    const employeeList = document.getElementById('employeeList');
-    if (employeeList) renderEmployeeList(employeeList, db);
-    if (added > 0) alert(`Au fost adăugate ${added} ture.`);
-    else alert('Nu s-a adăugat nicio tură (există deja pentru zilele selectate).');
-  };
-  // Populează checkbox-urile pentru zile dinamic (doar o dată, nu dublat)
-  const daysContainer = modal.querySelector('#addShiftDaysContainer');
-  if (daysContainer) {
-    daysContainer.innerHTML = generateDaysCheckboxes('addShiftDays', 'addShiftDays');
-    // Forțează font-weight normal pe toate label-urile zilelor
-    daysContainer.querySelectorAll('label').forEach(l => l.style.fontWeight = '400');
+  // Eliminat window.onclick care bloca modalul la orice click
+  showModalWithBackdrop(modal);
+  console.log('[DEBUG] showModalWithBackdrop called for employeeDetailsModal');
+
+  showModalWithBackdrop(modal);
+}
+
+// Modal pentru gestionarea concediilor unui angajat specific
+function openEmployeeLeaveModal(empId, empData) {
+  let modal = document.getElementById('employeeLeaveModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'employeeLeaveModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content shift-modal-premium" style="max-width: 600px;">
+        <button class="close" aria-label="Închide">&times;</button>
+        <div class="shift-modal-header">
+          <div class="shift-modal-icon"><span>🏖️</span></div>
+          <div>
+            <div class="shift-modal-title">Concedii - ${empData.lastName} ${empData.firstName}</div>
+            <div class="shift-modal-subtitle">Gestionează concediile pentru acest angajat</div>
+          </div>
+        </div>
+        <div class="shift-modal-form">
+          <!-- Secțiunea de adăugare concediu -->
+          <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 16px 0; color: #223046;">Adaugă concediu nou pentru săptămâna curentă</h3>
+            <div class="shift-modal-row">
+              <label>Zile de concediu din săptămâna curentă:</label>
+              <div id="empLeaveDaysContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                <!-- Checkbox-uri pentru zile -->
+              </div>
+            </div>
+            <button id="addEmpLeaveBtn" class="shift-modal-save" style="margin-top: 16px;">Adaugă concediu</button>
+          </div>
+          
+          <!-- Secțiunea cu concediile existente pentru acest angajat -->
+          <div>
+            <h3 style="margin: 0 0 16px 0; color: #223046;">Concediile acestui angajat</h3>
+            <div id="empExistingLeavesContainer" style="max-height: 300px; overflow-y: auto;">
+              <!-- Lista concediilor angajatului -->
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
   }
+
+  // Generează checkbox-urile pentru zile
+  const daysContainer = document.getElementById('empLeaveDaysContainer');
+  // Folosește DAYS global definit în utils.js pentru consistență
+  daysContainer.innerHTML = (window.DAYS || ['Luni', 'Marti', 'Miercuri', 'Joi', 'Vineri', 'Sambata', 'Duminica']).map(day => `
+    <label style="display: flex; align-items: center; gap: 6px; background: #fff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e3e7ef; cursor: pointer;">
+      <input type="checkbox" value="${day}" style="margin: 0;">
+      <span>${day}</span>
+    </label>
+  `).join('');
+
+  // Event listener pentru adăugarea concediului
+  const addEmpLeaveBtn = document.getElementById('addEmpLeaveBtn');
+  addEmpLeaveBtn.onclick = async function() {
+    const selectedDays = Array.from(daysContainer.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+
+    if (selectedDays.length === 0) {
+      alert('Selectează cel puțin o zi!');
+      return;
+    }
+
+    try {
+      // Folosește săptămâna curentă din calendar
+      let monday = window.currentMonday || getMondayOf(new Date());
+      let weekKey = getWeekKey(monday);
+      
+      await window.LeaveManager.addLeave(db, empId, weekKey, selectedDays);
+      alert('Concediul a fost adăugat cu succes!');
+      
+      // Reset form
+      daysContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      
+      // Refresh list
+      loadEmployeeLeaves();
+      
+      // Refresh calendar dacă e pentru săptămâna curentă
+      const calendar = document.getElementById('calendar');
+      if (calendar) {
+        let monday = window.currentMonday || getMondayOf(new Date());
+        let currentWeekKey = getWeekKey(monday);
+        renderCustomCalendarForWeek(calendar, db, currentWeekKey);
+      }
+      
+      // Refresh employee list
+      const employeeList = document.getElementById('employeeList');
+      if (employeeList) renderEmployeeList(employeeList, db);
+    } catch (error) {
+      alert('Eroare la adăugarea concediului: ' + error.message);
+    }
+  };
+
+  // Funcție pentru încărcarea concediilor acestui angajat
+  async function loadEmployeeLeaves() {
+    const container = document.getElementById('empExistingLeavesContainer');
+    const leaves = await window.LeaveManager.fetchLeaves(db);
+    const employeeLeaves = leaves.filter(leave => leave.employeeId === empId);
+    
+    if (employeeLeaves.length === 0) {
+      container.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Nu există concedii înregistrate pentru acest angajat</p>';
+      return;
+    }
+
+    container.innerHTML = employeeLeaves.map(leave => `
+      <div class="leave-item" style="background: #fff; border: 1px solid #e3e7ef; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <strong>Săptămâna ${leave.weekKey}</strong>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+          ${leave.days.map(day => `
+            <span class="day-tag" style="background: #e3f2fd; color: #1976d2; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; cursor: pointer;" 
+                  onclick="removeEmployeeLeaveDay('${leave.employeeId}', '${leave.weekKey}', '${day}')"
+                  title="Click pentru a șterge">
+              ${day} ✕
+            </span>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Funcție globală pentru ștergerea unei zile de concediu pentru angajat
+  window.removeEmployeeLeaveDay = async function(employeeId, weekKey, day) {
+    if (!confirm(`Sigur vrei să ștergi ziua de ${day} din concediul angajatului?`)) return;
+    
+    try {
+      await window.LeaveManager.removeLeaveDay(employeeId, weekKey, day);
+      loadEmployeeLeaves();
+      
+      // Refresh calendar dacă e pentru săptămâna curentă
+      const calendar = document.getElementById('calendar');
+      if (calendar) {
+        let monday = window.currentMonday || getMondayOf(new Date());
+        let currentWeekKey = getWeekKey(monday);
+        renderCustomCalendarForWeek(calendar, db, currentWeekKey);
+      }
+      
+      // Refresh employee list
+      const employeeList = document.getElementById('employeeList');
+      if (employeeList) renderEmployeeList(employeeList, db);
+    } catch (error) {
+      alert('Eroare la ștergerea zilei de concediu: ' + error.message);
+    }
+  };
+
+  // Încarcă concediile angajatului
+  loadEmployeeLeaves();
+
+  modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
+  // Eliminat window.onclick care bloca modalul la orice click
+  showModalWithBackdrop(modal);
+
   showModalWithBackdrop(modal);
 }
 
 // === BUTON MASS SHIFT ÎN SIDEBAR ===
 window.addEventListener('DOMContentLoaded', () => {
+  // Buton Adaugă angajat
+  const addEmployeeBtn = document.getElementById('addEmployeeBtn');
+  if (addEmployeeBtn && typeof window.openAddEmployeeModal === 'function') {
+    addEmployeeBtn.addEventListener('click', function() {
+      window.openAddEmployeeModal();
+    });
+  }
   // Adaugă butonul Mass Shift în sidebar dacă există employeeList
   const employeeList = document.getElementById('employeeList');
   if (employeeList && !document.getElementById('massShiftBtn')) {
@@ -1055,23 +1213,25 @@ window.addEventListener('DOMContentLoaded', () => {
     employeeList.parentNode.insertBefore(massBtn, employeeList);
     massBtn.onclick = openMassShiftModal;
   }
+
+  // === INTEGRARE LEAVE MANAGER ===
+  // Încarcă concediile la inițializare
+  if (window.LeaveManager && db) {
+    window.LeaveManager.fetchLeaves(db);
+  }
+
+  // Adaugă event listener pentru butonul de concedii
+  const leaveBtn = document.getElementById('leaveBtn');
+  if (leaveBtn) {
+    leaveBtn.addEventListener('click', openLeaveManagementModal);
+  }
+
   // === Asigură afișarea calendarului la încărcarea paginii ===
   const calendar = document.getElementById('calendar');
   if (calendar && typeof renderCustomCalendarForWeek === 'function' && typeof db !== 'undefined') {
     let monday = window.currentMonday || getMondayOf(new Date());
     let weekKey = getWeekKey(monday);
     renderCustomCalendarForWeek(calendar, db, weekKey);
-  }
-  // === Asociază handler pentru butonul Adaugă angajat ===
-  const addEmpBtn = document.querySelector('button, input[type="button"], input[type="submit"]#addEmployeeBtn, #addEmployeeBtn');
-  // Caută butonul după text dacă nu are id
-  let foundBtn = addEmpBtn;
-  if (!foundBtn) {
-    const btns = Array.from(document.querySelectorAll('button'));
-    foundBtn = btns.find(b => b.textContent && b.textContent.trim().toLowerCase().includes('adaugă angajat'));
-  }
-  if (foundBtn) {
-    foundBtn.onclick = () => openAddEmployeeModal(); // Apel fără parametrii pentru adăugare nouă
   }
 });
 
@@ -1196,7 +1356,8 @@ function openMassShiftModal() {
     };
   }
   modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
-  window.onclick = (event) => { if (event.target == modal) hideModalWithBackdrop(modal); };
+  // Eliminat window.onclick care bloca modalul la orice click
+  showModalWithBackdrop(modal);
   modal.querySelector('#massShiftForm').onsubmit = async function(e) {
     e.preventDefault();
     const empIds = Array.from(modal.querySelectorAll('input[name="massShiftEmp"]:checked')).map(cb => cb.value);
@@ -1213,6 +1374,7 @@ function openMassShiftModal() {
     let monday = window.currentMonday || getMondayOf(new Date());
     let weekKey = getWeekKey(monday);
     let added = 0;
+    let skippedLeave = 0; // Counter pentru ture sărite din cauza concediului
     for (const empId of empIds) {
       const empDoc = await db.collection('employees').doc(empId).get();
       if (!empDoc.exists) continue;
@@ -1224,6 +1386,13 @@ function openMassShiftModal() {
         else loc = 'Implicit';
       }
       for (const day of days) {
+        // Verifică dacă angajatul este în concediu în ziua respectivă
+        if (window.LeaveManager && window.LeaveManager.isOnLeave(empId, weekKey, day)) {
+          console.log(`Nu se poate adăuga tură pentru ${emp.lastName} ${emp.firstName} în ziua ${day} - angajatul este în concediu`);
+          skippedLeave++;
+          continue; // Sare peste această zi pentru acest angajat
+        }
+        
         // Verifică dacă există deja tură pentru acea zi și săptămână
         const existingShiftsSnap = await db.collection('shifts')
           .where('employeeId', '==', empId)
@@ -1254,8 +1423,20 @@ function openMassShiftModal() {
     renderCustomCalendarForWeek(document.getElementById('calendar'), db, weekKey);
     const employeeList = document.getElementById('employeeList');
     if (employeeList) renderEmployeeList(employeeList, db);
-    if (added > 0) alert(`Au fost adăugate ${added} ture.`);
-    else alert('Nu s-a adăugat nicio tură (există deja pentru zilele selectate).');
+    
+    // Mesaj detaliat despre rezultatul operației
+    let message = '';
+    if (added > 0) {
+      message += `Au fost adăugate ${added} ture.`;
+    }
+    if (skippedLeave > 0) {
+      message += (added > 0 ? '\n' : '') + `${skippedLeave} ture nu au fost adăugate deoarece angajații respectivi sunt în concediu.`;
+    }
+    if (added === 0 && skippedLeave === 0) {
+      message = 'Nu s-a adăugat nicio tură (există deja pentru zilele selectate).';
+    }
+    
+    alert(message);
   };
    // Populează checkbox-urile pentru zile dinamic (doar o dată, nu dublat)
   const daysContainer = modal.querySelector('#massShiftDaysContainer');
@@ -1267,6 +1448,536 @@ function openMassShiftModal() {
   showModalWithBackdrop(modal);
 }
 
+// Modal pentru adăugare tură individuală pentru un angajat
+function openAddShiftModal(empId) {
+  // Obține informațiile angajatului
+  db.collection('employees').doc(empId).get().then(empDoc => {
+    if (!empDoc.exists) {
+      alert('Angajatul nu a fost găsit!');
+      return;
+    }
+    
+    const emp = empDoc.data();
+    let modal = document.getElementById('addShiftModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'addShiftModal';
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content shift-modal-premium">
+          <button class="close" aria-label="Închide">&times;</button>
+          <div class="shift-modal-header">
+            <div class="shift-modal-icon"><span>🕒</span></div>
+            <div>
+              <div class="shift-modal-title">Adaugă tură pentru</div>
+              <div class="shift-modal-employee" id="addShiftEmployeeName"></div>
+            </div>
+          </div>
+          <form id="addShiftForm" class="shift-modal-form">
+            <div class="shift-modal-row days-row">
+              <label>Zile:</label>
+              <span id="addShiftDaysContainer"></span>
+            </div>
+            <div class="shift-modal-row">
+              <label>Preset orar:</label>
+              <select id="addShiftPresetInterval">
+                <option value="">-- alege --</option>
+                <option value="08:00-17:00">08:00-17:00</option>
+                <option value="08:00-14:30">08:00-14:30</option>
+                <option value="10:00-14:00">10:00-14:00</option>
+                <option value="10:00-16:30">10:00-16:30</option>
+                <option value="10:00-19:00">10:00-19:00</option>
+                <option value="13:00-22:00">13:00-22:00</option>
+                <option value="15:30-22:00">15:30-22:00</option>
+                <option value="18:00-22:00">18:00-22:00</option>
+              </select>
+            </div>
+            <div class="shift-modal-row">
+              <label>Ora intrare:</label>
+              <select id="addShiftStartHour" required></select> : <select id="addShiftStartMinute" required></select>
+            </div>
+            <div class="shift-modal-row">
+              <label>Ora ieșire:</label>
+              <select id="addShiftEndHour" required></select> : <select id="addShiftEndMinute" required></select>
+            </div>
+            <div class="shift-modal-row">
+              <label for="addShiftLocation">Locație tură:</label>
+              <select id="addShiftLocation" required>
+                <option value="Implicit">Implicit</option>
+                <option value="Parter">Parter</option>
+                <option value="Etaj">Etaj</option>
+              </select>
+            </div>
+            <div class="shift-modal-row">
+              <label><input type="checkbox" id="addShiftResponsabil"> Responsabil deschidere/închidere/numărat case/acte/trezor</label>
+            </div>
+            <div class="shift-modal-row">
+              <label><input type="checkbox" id="addShiftResponsabilInventar"> Responsabil inventar</label>
+            </div>
+            <div class="shift-modal-actions">
+              <button type="submit" class="shift-modal-save">Adaugă ture</button>
+            </div>
+            <input type="hidden" id="addShiftEmployeeId">
+          </form>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+    
+    // Populează informațiile angajatului
+    document.getElementById('addShiftEmployeeName').textContent = `${emp.lastName} ${emp.firstName}`;
+    document.getElementById('addShiftEmployeeId').value = empId;
+    
+    // Populează dropdown-urile pentru ore și minute
+    function fillSelect(id, start, end, pad) {
+      const sel = modal.querySelector('#' + id);
+      if (!sel) return;
+      sel.innerHTML = '';
+      for (let i = start; i <= end; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = pad ? String(i).padStart(2, '0') : i;
+        sel.appendChild(opt);
+      }
+    }
+    fillSelect('addShiftStartHour', 7, 23, true);
+    fillSelect('addShiftEndHour', 8, 24, true);
+    fillSelect('addShiftStartMinute', 0, 59, true);
+    fillSelect('addShiftEndMinute', 0, 59, true);
+
+    // Preset orar
+    const presetSelect = modal.querySelector('#addShiftPresetInterval');
+    if (presetSelect) {
+      presetSelect.onchange = function() {
+        if (!this.value) return;
+        const [start, end] = this.value.split('-');
+        const [sh, sm] = start.split(':').map(Number);
+        const [eh, em] = end.split(':').map(Number);
+        modal.querySelector('#addShiftStartHour').value = sh;
+        modal.querySelector('#addShiftStartMinute').value = sm;
+        modal.querySelector('#addShiftEndHour').value = eh;
+        modal.querySelector('#addShiftEndMinute').value = em;
+      };
+    }
+
+    // Populează checkbox-urile pentru zile
+    const daysContainer = modal.querySelector('#addShiftDaysContainer');
+    if (daysContainer) {
+      daysContainer.innerHTML = generateDaysCheckboxes('addShiftDays', 'addShiftDays');
+      daysContainer.querySelectorAll('label').forEach(l => l.style.fontWeight = '400');
+    }
+
+    // Set implicit location based on department
+    const locationSelect = modal.querySelector('#addShiftLocation');
+    if (locationSelect) {
+      if (emp.department === 'Women') {
+        locationSelect.value = 'Parter';
+      } else if (emp.department === 'Men' || emp.department === 'Kids') {
+        locationSelect.value = 'Etaj';
+      } else {
+        locationSelect.value = 'Implicit';
+      }
+    }
+
+    modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
+    window.onclick = (event) => { if (event.target == modal) hideModalWithBackdrop(modal); };
+    
+    modal.querySelector('#addShiftForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const empId = document.getElementById('addShiftEmployeeId').value;
+      const days = Array.from(modal.querySelectorAll('input[name="addShiftDays"]:checked')).map(cb => cb.value);
+      
+      if (days.length === 0) { 
+        alert('Selectează cel puțin o zi!'); 
+        return; 
+      }
+      
+      const startHour = parseInt(modal.querySelector('#addShiftStartHour').value);
+      const startMinute = parseInt(modal.querySelector('#addShiftStartMinute').value);
+      const endHour = parseInt(modal.querySelector('#addShiftEndHour').value);
+      const endMinute = parseInt(modal.querySelector('#addShiftEndMinute').value);
+      let location = modal.querySelector('#addShiftLocation').value;
+      const isResponsabil = modal.querySelector('#addShiftResponsabil').checked;
+      const isResponsabilInventar = modal.querySelector('#addShiftResponsabilInventar').checked;
+      
+      let monday = window.currentMonday || getMondayOf(new Date());
+      let weekKey = getWeekKey(monday);
+      
+      // Asigură-te că LeaveManager este inițializat
+      if (window.LeaveManager) {
+        await window.LeaveManager.fetchLeaves(db);
+      }
+      
+      let added = 0;
+      let skippedLeave = 0;
+      let skippedExisting = 0;
+      
+      for (const day of days) {
+        // Verifică dacă angajatul este în concediu în ziua respectivă
+        if (window.LeaveManager && window.LeaveManager.isOnLeave(empId, weekKey, day)) {
+          console.log(`Nu se poate adăuga tură pentru ${emp.lastName} ${emp.firstName} în ziua ${day} - angajatul este în concediu`);
+          skippedLeave++;
+          continue;
+        }
+        
+        // Verifică dacă există deja tură pentru acea zi și săptămână
+        const existingShiftsSnap = await db.collection('shifts')
+          .where('employeeId', '==', empId)
+          .where('day', '==', day)
+          .where('weekKey', '==', weekKey)
+          .get();
+        
+        if (!existingShiftsSnap.empty) {
+          skippedExisting++;
+          continue;
+        }
+        
+        // Adaugă tura
+        await db.collection('shifts').add({
+          name: emp.lastName + ' ' + emp.firstName,
+          lastName: emp.lastName,
+          firstName: emp.firstName,
+          day,
+          startHour,
+          startMinute,
+          endHour,
+          endMinute,
+          department: emp.department,
+          employeeId: empId,
+          location: location,
+          weekKey: weekKey,
+          isResponsabil: isResponsabil,
+          isResponsabilInventar: isResponsabilInventar
+        });
+        added++;
+      }
+      
+      hideModalWithBackdrop(modal);
+      renderCustomCalendarForWeek(document.getElementById('calendar'), db, weekKey);
+      const employeeList = document.getElementById('employeeList');
+      if (employeeList) renderEmployeeList(employeeList, db);
+      
+      // Mesaj detaliat despre rezultatul operației
+      let message = '';
+      if (added > 0) {
+        message += `Au fost adăugate ${added} ture pentru ${emp.lastName} ${emp.firstName}.`;
+      }
+      if (skippedLeave > 0) {
+        message += (added > 0 ? '\n' : '') + `${skippedLeave} ture nu au fost adăugate deoarece angajatul este în concediu.`;
+      }
+      if (skippedExisting > 0) {
+        message += (added > 0 || skippedLeave > 0 ? '\n' : '') + `${skippedExisting} ture nu au fost adăugate deoarece există deja pentru zilele respective.`;
+      }
+      if (added === 0 && skippedLeave === 0 && skippedExisting === 0) {
+        message = 'Nu s-a adăugat nicio tură.';
+      }
+      
+      alert(message);
+    };
+    
+    showModalWithBackdrop(modal);
+  }).catch(err => {
+    alert('Eroare la încărcarea angajatului: ' + err.message);
+  });
+}
+
+// Definire funcție globală
+window.openAddShiftModal = openAddShiftModal;
+
+// Utilitar pentru a afișa/ascunde backdrop cu blur pentru orice modal
+function showModalWithBackdrop(modal) {
+  let backdrop = document.querySelector('.modal-backdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    document.body.appendChild(backdrop);
+  }
+  backdrop.style.display = 'block';
+  modal.style.display = 'block';
+  backdrop.onclick = () => { hideModalWithBackdrop(modal); };
+}
+function hideModalWithBackdrop(modal) {
+  modal.style.display = 'none';
+  const backdrop = document.querySelector('.modal-backdrop');
+  if (backdrop) backdrop.style.display = 'none';
+}
+
+function renderEmployeeList(container, db, weekKeyOverride) {
+  console.log('renderEmployeeList called');
+  // Preia weekKey-ul săptămânii afișate
+  let monday = window.currentMonday || getMondayOf(new Date());
+  let weekKey = weekKeyOverride || getWeekKey(monday);
+  // Preia toate turele pentru săptămâna curentă
+  db.collection("shifts").where('weekKey', '==', weekKey).get().then(async shiftSnap => {
+    const shifts = [];
+    shiftSnap.forEach(doc => shifts.push({ ...doc.data(), id: doc.id }));
+    
+    // Încarcă concediile pentru săptămână
+    let leavesForWeek = [];
+    if (window.LeaveManager) {
+      await window.LeaveManager.fetchLeaves(db);
+      leavesForWeek = window.LeaveManager.leaves.filter(leave => leave.weekKey === weekKey);
+    }
+    
+    db.collection("employees").get().then(querySnapshot => {
+      const employees = [];
+      querySnapshot.forEach(doc => employees.push({ ...doc.data(), id: doc.id }));
+      const { groups, empIdMap, empHours } = getEmployeeGroupsAndHours(shifts, employees);
+      let html = '';
+      for (const group of ['Parter', 'Etaj', 'Management', 'Externi']) {
+        html += `<div class='employee-group'><div class='employee-group-title'>${group}</div>`;
+        if (groups[group] && groups[group].length > 0) {
+          html += '<ul class="employee-list">';
+          for (const emp of groups[group]) {
+            let deptClass = '';
+            if (group === 'Parter') deptClass = 'dept-green';
+            else if (group === 'Etaj') deptClass = 'dept-blue';
+            else if (group === 'Management') deptClass = 'dept-purple';
+            else if (group === 'Externi') deptClass = 'dept-orange';
+            let ore = empHours[emp.id] ? empHours[emp.id] : 0;
+            let norma = parseFloat(emp.norma);
+            let isComplete = !isNaN(norma) && ore >= norma;
+            let checkMark = isComplete ? `<span class='employee-complete' title='Norma completă' style='color:#27ae60;font-size:1.2em;margin-left:8px;'>✔️</span>` : '';
+            
+            // Verifică dacă angajatul are concediu în această săptămână
+            const empLeaves = leavesForWeek.filter(leave => leave.employeeId === emp.id);
+            let leaveIndicator = '';
+            if (empLeaves.length > 0) {
+              const totalLeaveDays = empLeaves.reduce((total, leave) => total + leave.days.length, 0);
+              leaveIndicator = ` <span style="color:#ff6b35;font-size:1.1em;" title="${totalLeaveDays} zi(le) de concediu">🏖️</span>`;
+            }
+            
+            let oreText = `<span class='employee-hours' style='color:#888; font-size:0.95em;'>${ore}h</span>`;
+            html += `<li class="employee-item" data-empid="${emp.id}">
+              <div class="employee-main-row">${emp.lastName} ${emp.firstName} <span style='color:#aaa'>(${emp.norma})</span>${leaveIndicator}</div>
+              <div class="employee-info-row"><span class="employee-dept ${deptClass}">${emp.department}</span> ${oreText}${checkMark}</div>
+            </li>`;
+          }
+          html += '</ul>';
+        } else {
+          html += '<div class="employee-empty">(niciun angajat)</div>';
+        }
+        html += '</div>';
+      }
+      container.innerHTML = html;
+      // La click pe angajat, deschide modalul de detalii cu datele angajatului
+      container.querySelectorAll('.employee-item').forEach(li => {
+        li.addEventListener('click', function() {
+          const empId = this.dataset.empid;
+          // Caută datele angajatului în lista employees
+          const empData = employees.find(e => e.id === empId);
+          if (empData) {
+            window.openEmployeeDetailsModal(empId, empData);
+          } else {
+            alert('Datele angajatului nu au putut fi găsite!');
+          }
+        });
+      });
+    }).catch(err => {
+      alert('Eroare la încărcarea angajaților: ' + err.message);
+    });
+  }).catch(err => {
+    alert('Eroare la încărcarea turelor: ' + err.message);
+  });
+}
+
+// Funcție globală pentru actualizarea listei de angajați la schimbarea săptămânii
+window.updateEmployeeListForWeek = function(weekKey) {
+  const employeeList = document.getElementById('employeeList');
+  if (employeeList) renderEmployeeList(employeeList, db, weekKey);
+}
+
+// Actualizează lista de angajați pentru o anumită săptămână (weekKey)
+function updateEmployeeListForWeek(weekKey) {
+  const employeeList = document.getElementById('employeeList');
+  if (!employeeList) return;
+  // Preia toate turele DOAR pentru weekKey dat
+  db.collection("shifts").where('weekKey', '==', weekKey).get().then(shiftSnap => {
+    const shifts = [];
+    shiftSnap.forEach(doc => shifts.push({ ...doc.data(), id: doc.id }));
+    db.collection("employees").get().then(querySnapshot => {
+      const employees = [];
+      querySnapshot.forEach(doc => employees.push({ ...doc.data(), id: doc.id }));
+      const { groups, empIdMap, empHours } = getEmployeeGroupsAndHours(shifts, employees);
+      let html = '';
+      for (const group of ['Parter', 'Etaj', 'Management']) {
+        html += `<div class='employee-group'><div class='employee-group-title'>${group}</div>`;
+        if (groups[group].length > 0) {
+          html += '<ul class="employee-list">';
+          for (const emp of groups[group]) {
+            let deptClass = '';
+            if (group === 'Parter') deptClass = 'dept-green';
+            else if (group === 'Etaj') deptClass = 'dept-blue';
+            else if (group === 'Management') deptClass = 'dept-purple';
+            let ore = empHours[emp.id] ? empHours[emp.id] : 0;
+            let norma = parseFloat(emp.norma);
+            let isComplete = !isNaN(norma) && ore >= norma;
+            let checkMark = isComplete ? `<span class='employee-complete' title='Norma completă' style='color:#27ae60;font-size:1.2em;margin-left:8px;'>✔️</span>` : '';
+            let oreText = `<span class='employee-hours' style='color:#888; font-size:0.95em;'>${ore}h</span>`;
+            html += `<li class="employee-item" data-empid="${emp.id}">
+              <div class="employee-main-row">${emp.lastName} ${emp.firstName} <span style='color:#aaa'>(${emp.norma})</span></div>
+              <div class="employee-info-row"><span class="employee-dept ${deptClass}">${emp.department}</span> ${oreText}${checkMark}</div>
+            </li>`;
+          }
+          html += '</ul>';
+        } else {
+          html += '<div class="employee-empty">(niciun angajat)</div>';
+        }
+        html += '</div>';
+      }
+      employeeList.innerHTML = html;
+      // La click pe angajat, deschide modalul de detalii cu datele angajatului (folosește employees ca în renderEmployeeList)
+      employeeList.querySelectorAll('.employee-item').forEach(li => {
+        li.addEventListener('click', function() {
+          const empId = this.dataset.empid;
+          const empData = employees.find(e => e.id === empId);
+          if (empData) {
+            window.openEmployeeDetailsModal(empId, empData);
+          } else {
+            alert('Datele angajatului nu au putut fi găsite!');
+          }
+        });
+      });
+    }).catch(err => {
+      alert('Eroare la încărcarea angajaților: ' + err.message);
+    });
+  }).catch(err => {
+    alert('Eroare la încărcarea turelor: ' + err.message);
+  });
+}
+
+// Modal detalii angajat (vizualizare + buton Editează + buton Adaugă tură)
+function openEmployeeDetailsModal(empId, empData) {
+  let modal = document.getElementById('employeeDetailsModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'employeeDetailsModal';
+    modal.className = 'modal';
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = `
+    <div class="modal-content shift-modal-premium">
+      <button class="close" aria-label="Închide">&times;</button>
+      <div class="shift-modal-header">
+        <div class="shift-modal-icon"><span>👤</span></div>
+        <div>
+          <div class="shift-modal-title">${empData.lastName} ${empData.firstName}</div>
+          <div class="shift-modal-day">${empData.department} | Norma: ${empData.norma}</div>
+        </div>
+      </div>
+      <div id="login-details-toggle" style="margin:18px 0 0 0;display:flex;justify-content:center;">
+        <button id="showLoginDetailsBtn" style="background:#1976d2;color:#fff;border:none;border-radius:5px;padding:7px 16px;font-size:0.98em;cursor:pointer;box-shadow:0 2px 8px #1976d233;transition:background .15s;">Detalii logare</button>
+      </div>
+      <div id="loginDetailsSection" style="display:none;margin:14px 0 0 0;padding:12px 18px 10px 18px;background:#f5f7fa;border-radius:8px;box-shadow:0 2px 8px #0001;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-weight:600;color:#1976d2;min-width:90px;">Username:</span><span style="color:#222;">${empData.username || '-'}</span></div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0;"><span style="font-weight:600;color:#1976d2;min-width:90px;">Parolă:</span><span style="color:#222;">${empData.password || '<span style=\'color:#888\'>(doar admin)</span>'}</span></div>
+      </div>
+      <div class="shift-modal-actions" style="margin-top:18px;display:flex;flex-wrap:wrap;gap:8px;justify-content: center;">
+        <button id="editEmployeeBtn" class="shift-modal-save" style="min-width:110px;padding:10px 0;font-size:1em;">Editează</button>
+        <button id="addShiftForEmployeeBtn" class="shift-modal-save" style="background:#4f8cff;min-width:100px;padding:10px 0;font-size:1em;">Adaugă tură</button>
+        <button id="manageLeaveBtn" class="shift-modal-save" style="background:#ff6b35;min-width:100px;padding:10px 0;font-size:1em;">Concedii</button>
+        <button id="deleteEmployeeBtn" class="shift-modal-delete" style="background:#e74c3c;min-width:100px;padding:10px 0;font-size:1em;">Șterge</button>
+      </div>
+    </div>
+  `;
+  // Toggle login details
+  setTimeout(() => {
+    const btn = modal.querySelector('#showLoginDetailsBtn');
+    const section = modal.querySelector('#loginDetailsSection');
+    if (btn && section) {
+      btn.onclick = function() {
+        if (section.style.display === 'none') {
+          section.style.display = 'block';
+          btn.textContent = 'Ascunde detalii logare';
+        } else {
+          section.style.display = 'none';
+          btn.textContent = 'Detalii logare';
+        }
+      };
+    }
+  }, 0);
+  // Toggle login details
+  setTimeout(() => {
+    const btn = modal.querySelector('#showLoginDetailsBtn');
+    const section = modal.querySelector('#loginDetailsSection');
+    if (btn && section) {
+      btn.onclick = function() {
+        if (section.style.display === 'none') {
+          section.style.display = 'block';
+          btn.textContent = 'Ascunde detalii logare';
+        } else {
+          section.style.display = 'none';
+          btn.textContent = 'Detalii logare';
+        }
+      };
+    }
+  }, 0);
+  modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
+  // Eliminat window.onclick care bloca modalul la orice click
+  showModalWithBackdrop(modal);
+  // Buton Editează (corectat: fallback la openAddEmployeeModal dacă openEditEmployeeModal nu există)
+  const editBtn = document.getElementById('editEmployeeBtn');
+  if (editBtn) {
+    editBtn.onclick = function() {
+      hideModalWithBackdrop(modal);
+      if (typeof window.openEditEmployeeModal === 'function') {
+        window.openEditEmployeeModal(empId, empData);
+      } else if (typeof window.openAddEmployeeModal === 'function') {
+        window.openAddEmployeeModal(empId, empData);
+      } else {
+        alert('Funcția de editare angajat nu este disponibilă! Contactați administratorul.');
+      }
+    };
+  }
+  // Buton Adaugă tură
+  const addShiftBtn = document.getElementById('addShiftForEmployeeBtn');
+  if (addShiftBtn) {
+    addShiftBtn.onclick = function() {
+      hideModalWithBackdrop(modal);
+      window.openAddShiftModal(empId);
+    };
+  }
+  
+  // Buton Gestionare Concedii
+  const manageLeaveBtn = document.getElementById('manageLeaveBtn');
+  if (manageLeaveBtn) {
+    manageLeaveBtn.onclick = function() {
+      hideModalWithBackdrop(modal);
+      openEmployeeLeaveModal(empId, empData);
+    };
+  }
+  
+  const deleteBtn = document.getElementById('deleteEmployeeBtn');
+  if (deleteBtn) {
+    deleteBtn.onclick = async function() {
+      if (!confirm('Sigur vrei să ștergi acest angajat? Această acțiune este ireversibilă!')) return;
+      try {
+        await db.collection('employees').doc(empId).delete();
+        // Șterge și toate turele asociate angajatului
+        const shiftsSnap = await db.collection('shifts').where('employeeId', '==', empId).get();
+        const batch = db.batch();
+        shiftsSnap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        hideModalWithBackdrop(modal);
+        const employeeList = document.getElementById('employeeList');
+        if (employeeList) renderEmployeeList(employeeList, db);
+        // --- MODIFICARE: reîncarcă calendarul pentru săptămâna activă ---
+        const calendar = document.getElementById('calendar');
+        let monday = window.currentMonday || getMondayOf(new Date());
+        let weekKey = getWeekKey(monday);
+        if (calendar && typeof renderCustomCalendarForWeek === 'function') {
+          renderCustomCalendarForWeek(calendar, db, weekKey);
+        }
+        alert('Angajatul și toate turele asociate au fost șterse!');
+      } catch (err) {
+        alert('Eroare la ștergerea angajatului: ' + err.message);
+      }
+    };
+  }
+}
+window.openEmployeeDetailsModal = openEmployeeDetailsModal;
+
+// === MISC ===
 // Add tooltips for buttons and fields
 document.querySelectorAll('button, input, select').forEach(el => {
   el.setAttribute('title', el.getAttribute('aria-label') || '');

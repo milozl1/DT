@@ -74,6 +74,8 @@
 </style>
 </head>
 <body>
+  <!-- Secțiune profil utilizator -->
+  <div id="userProfile"></div>
   <!-- Layout nou, mobile-first, pentru calendar utilizator -->
   <main id="userMobileCalendar">
     <header class="mobile-toolbar" style="position:sticky;top:0;z-index:10;background:#fff;display:flex;align-items:center;justify-content:center;gap:0;padding:10px 0 8px 0;border-bottom:1px solid #e3e7ef;">
@@ -102,6 +104,8 @@
     </section>
     <section id="userCalendar" style="min-height:200px;"></section>
     <div id="statisticsPanel" style="display:none;"></div>
+  <!-- userStatisticsPanel eliminat, se folosește doar statisticsPanel pentru modal premium -->
+    <!-- Modal pentru statistici personale (Statistici personale) eliminat, se folosește doar modalul premium -->
   </main>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -135,9 +139,13 @@
         measurementId: "G-8V5HKBGNRR"
       });
     }
+    // Asigură acces global la Firestore pentru statistics.js
+    window.db = firebase.firestore();
   </script>
   <script src="user-mobile-calendar.js"></script>
-</body>
-</body>
+<script src="leave.js"></script>
+<!-- Chart.js for statistics panel -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="statistics.js"></script>
+</body>
 </html>

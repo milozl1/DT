@@ -830,9 +830,23 @@ window.addEventListener('DOMContentLoaded', () => {
         // Creează un set cu chei unice (employeeId, day) pentru săptămâna curentă
         const currKeys = new Set(currShifts.map(s => `${s.employeeId}|${s.day}`));
         let added = 0;
+        let skippedLeave = 0; // Counter pentru ture sărite din cauza concediului
+        
+        // Asigură-te că LeaveManager este inițializat și încărcat
+        if (window.LeaveManager) {
+          await window.LeaveManager.fetchLeaves(db);
+        }
+        
         for (const shift of prevShifts) {
           const key = `${shift.employeeId}|${shift.day}`;
           if (!currKeys.has(key)) {
+            // Verifică dacă angajatul este în concediu în ziua respectivă pentru săptămâna curentă
+            if (window.LeaveManager && window.LeaveManager.isOnLeave(shift.employeeId, weekKey, shift.day)) {
+              console.log(`Nu se poate copia tura pentru ${shift.name} în ziua ${shift.day} - angajatul este în concediu`);
+              skippedLeave++;
+              continue; // Sare peste această tură
+            }
+            
             // Copiază tura, dar cu weekKey actual
             const newShift = { ...shift, weekKey };
             delete newShift.id; // elimină id-ul vechi dacă există
@@ -842,7 +856,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (window.refreshCalendarForWeek) window.refreshCalendarForWeek(weekKey);
         if (window.updateEmployeeListForWeek) window.updateEmployeeListForWeek(weekKey);
-        alert(`Copiere finalizată. Au fost adăugate ${added} ture noi.`);
+        
+        // Mesaj detaliat despre rezultatul copierii
+        let message = `Copiere finalizată. Au fost adăugate ${added} ture noi.`;
+        if (skippedLeave > 0) {
+          message += `\n${skippedLeave} ture nu au fost copiate deoarece angajații respectivi sunt în concediu.`;
+        }
+        alert(message);
       } else {
         alert('Firebase nu este disponibil!');
       }

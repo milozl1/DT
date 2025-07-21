@@ -118,33 +118,9 @@ function getLocalHoursArray() {
 }
 
 async function renderUserCalendar() {
-  // Remove all debug overlays from previous renders
-  setTimeout(() => {
-    const main = document.querySelector('main#userMobileCalendar');
-    const cal = document.getElementById('userCalendar');
-    if (main) {
-      main.style.width = 'fit-content';
-      main.style.minWidth = '0';
-      main.style.maxWidth = 'none';
-      main.style.marginLeft = 'auto';
-      main.style.marginRight = 'auto';
-      main.style.padding = '0';
-      main.style.border = 'none';
-      main.style.position = 'relative';
-    }
-    if (cal) {
-      cal.style.width = 'fit-content';
-      cal.style.minWidth = '0';
-      cal.style.maxWidth = 'none';
-      cal.style.marginLeft = 'auto';
-      cal.style.marginRight = 'auto';
-      cal.style.padding = '0';
-      cal.style.border = 'none';
-      cal.style.position = 'relative';
-    }
-  }, 10);
   window.currentMonday = currentMonday;
   updateWeekLabel();
+  // Show loading message before user is resolved
   calendarList.innerHTML = '<div style="text-align:center;color:#888;padding:32px 0;">Se încarcă...</div>';
   let error = '';
   let data = { shifts: [], tasks: {}, employees: [] };
@@ -158,11 +134,125 @@ async function renderUserCalendar() {
     return;
   }
   let { shifts, tasks, employees } = data;
+  // Asigură variabile globale pentru statistics.js (pentru statistici premium)
+  window.employees = employees;
+  window.weekShifts = shifts;
+  // leavesForWeek va fi setat mai jos după fetch
   const days = window.DAYS || ['Luni','Marti','Miercuri','Joi','Vineri','Sambata','Duminica'];
   if (!employees.length) {
     calendarList.innerHTML = '<div style="text-align:center;color:#888;padding:32px 0;">Niciun angajat găsit pentru această săptămână.</div>';
     return;
   }
+  // --- LEAVE: Fetch all leaves for current week and build leaveMap before any usage ---
+  let weekKey = window.getWeekKey ? window.getWeekKey(currentMonday) : currentMonday.toISOString().slice(0,10);
+  let allLeaves = [];
+  if (window.firebase && window.firebase.firestore) {
+    const db = firebase.firestore();
+    const leavesSnap = await db.collection('leaves')
+      .where('weekKey', '==', weekKey)
+      .get();
+    allLeaves = leavesSnap.docs.map(doc => doc.data());
+  }
+  // Build a map: { employeeId: leaveData }
+  const leaveMap = {};
+  for (const leave of allLeaves) {
+    if (leave.employeeId) leaveMap[leave.employeeId] = leave;
+  }
+  // Set global for statistics.js
+  window.leavesForWeek = allLeaves;
+  // --- User profile and statistics modal logic (now safe to use leaveMap) ---
+  let user = null;
+  let userId = window.userId || localStorage.getItem('userId');
+  if (window.currentUser) {
+    user = employees.find(e => e.id === window.currentUser.id);
+  } else if (userId) {
+    user = employees.find(e => e.id === userId);
+  } else if (employees.length === 1) {
+    user = employees[0];
+  }
+  // Profil vizual
+  if (user) {
+    // Îmbunătățire vizuală profil angajat cu buton statistici generale
+    const profileContainer = document.getElementById('userProfile');
+    if (profileContainer) {
+      // Emoticoane pentru avatar random (listă extinsă)
+      const avatarEmojis = [
+        '😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','🙂‍↕️','😏',
+        '😩','🥺','😢','😭','😮‍💨','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🫣','🤗','🫡','🤔','🫢','🤭','🤫','🤥','😶','😶‍🌫️','😐','😑','😬','🫨','🫠','🙄','😯','😦','😧','😮','😲','🥱','🤤','😪','😵','😵‍💫','🫥','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','🤡','👻','💀','☠️','👽','👾','🤖','🎃','😺'
+      ];
+      const randomEmoji = avatarEmojis[Math.floor(Math.random() * avatarEmojis.length)];
+      profileContainer.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;border-radius:22px;box-shadow:0 8px 32px #0002;padding:38px 28px 32px 28px;max-width:370px;margin:38px auto 32px auto;position:relative;">
+          <div style="width:92px;height:92px;border-radius:50%;background:linear-gradient(135deg,#e3f2fd 60%,#fff 100%);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 16px #1976d220;margin-bottom:22px;">
+            <span style='font-size:3.2em;line-height:1;'>${randomEmoji}</span>
+          </div>
+          <div style="font-size:1.5em;font-weight:700;color:#222;margin-bottom:6px;letter-spacing:0.5px;text-align:center;">${user.lastName || ''} ${user.firstName || ''}</div>
+          <div style="font-size:1.08em;font-weight:500;color:#1976d2;margin-bottom:10px;text-align:center;">${user.department || '-'}</div>
+          <div style="font-size:1.08em;color:#444;margin-bottom:22px;text-align:center;">Normă: <span style='font-weight:600;color:#388e3c;'>${user.norma || '-'}</span></div>
+          <button id='showGeneralStatsBtn' style='background:linear-gradient(90deg,#1976d2 60%,#64b5f6 100%);color:#fff;font-weight:600;border:none;border-radius:10px;padding:12px 0;font-size:1.08em;box-shadow:0 2px 12px #1976d230;cursor:pointer;transition:background 0.2s;width:100%;max-width:260px;margin-bottom:18px;'>Statistici generale</button>
+          <button id='userLogoutBtn' style='background:linear-gradient(90deg,#d32f2f 60%,#ff7043 100%);color:#fff;font-weight:600;border:none;border-radius:8px;padding:10px 0;font-size:1em;box-shadow:0 2px 8px #d32f2f30;cursor:pointer;transition:background 0.2s;width:100%;max-width:260px;'>Logout</button>
+        </div>
+      `;
+      // Adaugă event pentru butonul de statistici generale
+      setTimeout(() => {
+        const statsBtn = document.getElementById('showGeneralStatsBtn');
+        if (statsBtn) {
+          statsBtn.onclick = function() {
+          // Folosește statisticsPanel din HTML ca modal, fără overlay
+          const statsPanel = document.getElementById('statisticsPanel');
+          if (!statsPanel) return;
+          statsPanel.style.display = 'block';
+          statsPanel.style.position = 'fixed';
+          statsPanel.style.top = '50%';
+          statsPanel.style.left = '50%';
+          statsPanel.style.transform = 'translate(-50%, -50%)';
+          statsPanel.style.background = '#fff';
+          statsPanel.style.zIndex = '100000';
+          statsPanel.style.maxHeight = '90vh';
+          statsPanel.style.overflowY = 'auto';
+          statsPanel.style.boxShadow = '0 8px 32px #0003';
+          statsPanel.style.borderRadius = '22px';
+          statsPanel.style.padding = '38px 28px 32px 28px';
+          // Buton închidere
+          let closeBtn = document.createElement('button');
+          closeBtn.innerHTML = '&times;';
+          closeBtn.title = 'Închide';
+          closeBtn.style.position = 'absolute';
+          closeBtn.style.top = '18px';
+          closeBtn.style.right = '22px';
+          closeBtn.style.fontSize = '2em';
+          closeBtn.style.background = 'none';
+          closeBtn.style.border = 'none';
+          closeBtn.style.color = '#888';
+          closeBtn.style.cursor = 'pointer';
+          closeBtn.style.transition = 'color .15s';
+          closeBtn.onmouseover = function() { closeBtn.style.color = '#d32f2f'; };
+          closeBtn.onmouseout = function() { closeBtn.style.color = '#888'; };
+          closeBtn.onclick = function(ev) { ev.stopPropagation(); closeStats(); };
+          statsPanel.appendChild(closeBtn);
+          // Apelează funcția de randare statistici
+          if (typeof window.renderStatisticsPanel === 'function') {
+            let weekKey = window.getWeekKey ? window.getWeekKey(window.currentMonday) : window.currentMonday.toISOString().slice(0,10);
+            window.renderStatisticsPanel(weekKey);
+          } else {
+            statsPanel.innerHTML = '<div style="text-align:center;color:#888;font-size:1.2em;padding:32px 0;">Statistici indisponibile</div>';
+          }
+          function closeStats() {
+            statsPanel.style.display = 'none';
+            // readaugă panelul înapoi în DOM la locul original
+            const main = document.querySelector('main#userMobileCalendar');
+            if (main) main.appendChild(statsPanel);
+          }
+          };
+        }
+      }, 0);
+    }
+
+    // --- Statistici personale: reconstruiește complet conținutul la click pe buton ---
+    const statsModal = document.getElementById('userStatsModal');
+    // Eliminat complet logica pentru userStatsModal și userStatsModalOverlay
+  }
+  document.getElementById('userProfile').style.display = user ? '' : 'none';
   // --- SORTARE ANGAJATI: Parter, Etaj, Management, Externi ---
   const getSortGroup = emp => {
     const loc = (emp.location || emp.group || emp.department || '').toLowerCase();
@@ -295,7 +385,7 @@ async function renderUserCalendar() {
       .user-calendar-grid {
         display: grid;
         grid-template-columns: 120px repeat(${displayHours.length}, 48px);
-        grid-template-rows: 38px 20px repeat(100, 44px);
+        grid-template-rows: 38px 20px repeat(100, 80px);
         width: fit-content;
         min-width: max-content;
         margin: 0 auto;
@@ -651,7 +741,8 @@ async function renderUserCalendar() {
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
-        font-size: 0.97em;
+        font-size: 1.12em;
+        font-weight: bold !important;
       }
       .calendar-bar-label {
         position: relative;
@@ -662,7 +753,8 @@ async function renderUserCalendar() {
         text-overflow: ellipsis;
         display: inline-block;
         max-width: 100%;
-        font-size: 0.97em;
+        font-size: 1.12em;
+        font-weight: bold !important;
       }
       @media (max-width: 900px) {
         main#userMobileCalendar, .calendar-wrapper {
@@ -807,7 +899,7 @@ async function renderUserCalendar() {
     return `hsl(${hue}, 85%, 60%)`;
   }
   for (const day of days) {
-    // Normalizează cheile taskurilor la formatul fără diacritice (ca în calendar.js)
+    // Normalize task keys (no diacritics)
     const normalizedTasks = {};
     for (const k of Object.keys(tasks)) {
       let nk = k;
@@ -819,40 +911,32 @@ async function renderUserCalendar() {
     tasks = normalizedTasks;
 
     // --- Day name on its own grid row ---
-    html += `<div class='calendar-day-label' style="grid-row:${baseRow};overflow-x:auto;white-space:normal;display:block;align-items:flex-start;gap:0;max-width:100vw;background:#fff;font-weight:700;padding:0 0 0 0;">`
-      + `<div style='font-weight:700;min-width:60px;flex-shrink:0;display:inline-block;margin-bottom:0;'>${day}</div>`
-      + `</div>`;
-    let dayTasks = (tasks[day] || []);
-    let taskRows = '';
-    let rowIdx = baseRow;
-    if(dayTasks.length > 0) {
-      const totalTasks = dayTasks.length;
-      for (const [i, t] of dayTasks.entries()) {
-        rowIdx++;
-        // Culoare unică pentru fiecare task, fără verde/albastru/mov
-        const color = t.color || getTaskColor(i, totalTasks);
-        let assigned = '';
-        if (t.employeeIds && t.employeeIds.length > 0) {
-          assigned = ' — ' + t.employeeIds.map(eid => {
-            const emp = employees.find(emp => emp.id === eid);
-            return emp ? (emp.lastName + ' ' + emp.firstName) : '';
-          }).filter(Boolean).join(', ');
+html += `<div class='calendar-day-label' style="overflow-x:auto;white-space:normal;display:flex;align-items:center;justify-content:space-between;gap:0;max-width:100vw;background:#fff;font-weight:700;padding:0 0 0 0;">`
+  + `<div style='font-weight:700;min-width:60px;flex-shrink:0;display:inline-block;margin-bottom:0;'>${day}</div>`
+  + `<button class='user-preference-btn' data-day='${day}' style='margin-left:auto;padding:3px 10px;border-radius:7px;border:none;background:#1976d2;color:#fff;font-weight:500;cursor:pointer;font-size:0.92em;display:inline-block;line-height:1;'>Orar</button>`
+  + `</div>`;
+    // --- Build rowsForDay: leave, tasks, shifts ---
+    let rowsForDay = [];
+    // Afișează concediu pentru toți angajații cu leave în ziua curentă
+    for (const emp of employees) {
+      const leave = leaveMap[emp.id];
+      let showLeave = false;
+      if (leave) {
+        if (Array.isArray(leave.days)) {
+          if (leave.days.includes(day)) showLeave = true;
+        } else {
+          showLeave = true;
         }
-        // Empty cell for alignment, then task content spanning the rest
-        taskRows += `<div style="grid-row:${rowIdx};grid-column:1;display:flex;background:#fff;"></div>`;
-        taskRows += `<div class='calendar-task' style="grid-row:${rowIdx};grid-column:2/${displayHours.length+2};display:flex;align-items:center;gap:7px;background:#fff;padding:0 0 0 0;">`+
-          `<span class='calendar-task-dot' style='background:${color} !important;margin-right:7px;vertical-align:middle;border:2px solid #fff;box-shadow:0 1px 3px #0001;width:13px;height:13px;aspect-ratio:1/1;border-radius:50%;display:inline-block;'></span>`+
-          `<span style='font-weight:700;color:${color};'>${t.text}</span>`+
-          `<span style='color:#222;font-weight:400;'>${assigned}</span>`+
-        `</div>`;
+      }
+      if (showLeave) {
+        rowsForDay.push({ type: 'leave', user: emp });
       }
     }
-    html += taskRows;
-    // rowIdx is already incremented for tasks, continue for shifts
-
-    // --- Shifturi ca rânduri în grid ---
+    let dayTasks = (tasks[day] || []);
+    for (const [i, t] of dayTasks.entries()) {
+      rowsForDay.push({ type: 'task', task: t, taskIdx: i, totalTasks: dayTasks.length });
+    }
     let dayShifts = Object.values(shiftMap[day]);
-    // sortare ca la admin
     const getSortGroup = s => {
       const loc = (s.location || s.group || s.department || '').toLowerCase();
       if (loc.includes('parter')) return 0;
@@ -865,11 +949,9 @@ async function renderUserCalendar() {
       const gA = getSortGroup(a);
       const gB = getSortGroup(b);
       if (gA !== gB) return gA - gB;
-      // Secondary: sort by start time (hour, minute)
       const aStart = (a.startHour || 0) * 60 + (a.startMinute || 0);
       const bStart = (b.startHour || 0) * 60 + (b.startMinute || 0);
       if (aStart !== bStart) return aStart - bStart;
-      // Tertiary: sort by lastName, then firstName
       const empA = employees.find(e => e.id === a.employeeId) || {};
       const empB = employees.find(e => e.id === b.employeeId) || {};
       const lnA = (empA.lastName || '').toLowerCase();
@@ -879,68 +961,325 @@ async function renderUserCalendar() {
       const fnB = (empB.firstName || '').toLowerCase();
       return fnA.localeCompare(fnB);
     });
-    let shiftRowIdx = rowIdx;
     for (const shift of dayShifts) {
-      shiftRowIdx++;
-      const emp = employees.find(e => e.id === shift.employeeId) || {};
-      const firstName = emp.firstName || '';
-      const lastInitial = (emp.lastName && emp.lastName.length > 0) ? emp.lastName[0].toUpperCase() : '';
-      html += `<div class='calendar-emp-label' style="grid-row:${shiftRowIdx};">${firstName} ${lastInitial}</div>`;
-      // Find grid columns for shift
-      const startIdx = displayHours.findIndex(hh => {
-        const [h, m] = hh.split(':').map(Number);
-        return h === shift.startHour && m === (shift.startMinute || 0);
-      });
-      let endIdx = displayHours.findIndex(hh => {
-        const [h, m] = hh.split(':').map(Number);
-        return h === shift.endHour && m === (shift.endMinute || 0);
-      });
-      if (endIdx === -1) endIdx = displayHours.length - 1;
-      let barColor = '#27ae60';
-      if (shift.department === 'Emblema') {
-        barColor = '#ffb347';
-      } else if (shift.isResponsabil) {
-        barColor = '#8e44ad';
-      } else if (["Store Manager", "SM Deputy", "SVIM"].includes(shift.department)) {
-        barColor = '#8e44ad';
-      } else if (shift.location === 'Etaj') {
-        barColor = '#4f8cff';
-      } else if (shift.location === 'Parter') {
-        barColor = '#27ae60';
-      }
-      if (shift.isResponsabilInventar) {
-        barColor = '#e74c3c';
-      }
-      let barClass = 'calendar-bar';
-      if (shift.isResponsabilInventar) barClass += ' responsabil-inventar';
-      let weekKey = window.getWeekKey ? window.getWeekKey(currentMonday) : currentMonday.toISOString().slice(0,10);
-      let taskDot = '';
-      // --- TASK DOT LOGICĂ ADMIN ---
-      if (shift.employeeId && dayTasks.length > 0) {
-        const totalTasks = dayTasks.length;
-        for (let i = 0; i < dayTasks.length; i++) {
-          const t = dayTasks[i];
-          if (Array.isArray(t.employeeIds) && t.employeeIds.includes(shift.employeeId) && !t.done) {
-            const color = t.color || getTaskColor(i, totalTasks);
-            taskDot = `<span class='calendar-bar-dot' style='background:${color};width:7px !important;height:7px !important;margin-right:6px !important;'></span>`;
-            break;
+      rowsForDay.push({ type: 'shift', shift });
+    }
+    // --- Render all rows for this day ---
+    let rowIdx = baseRow;
+    for (const row of rowsForDay) {
+      rowIdx++;
+      if (row.type === 'leave') {
+        let norma = parseFloat(row.user && row.user.norma);
+        let dailyNorm = '';
+        if (!isNaN(norma) && norma > 0) {
+          let val = Math.round((norma / 5) * 10) / 10;
+          dailyNorm = (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + 'h';
+        }
+        html += `<div class='calendar-leave-bar' 
+          data-employee-id='${row.user.id}'
+          style='grid-row: ${rowIdx}; grid-column: 2 / span ${displayHours.length}; 
+                 height: 50%; 
+                 background: rgba(183, 183, 183, 0.1); 
+                 border: 2px dashed #ed7d55ff; 
+                 display: flex; 
+                 align-items: center; 
+                 justify-content: space-between; 
+                 border-radius: 8px; 
+                 color: #ae5656ff; 
+                 font-weight: bold; 
+                 font-size: 13px;
+                 z-index: 1; 
+                 cursor: default;
+                 margin: 1px;
+                 padding: 0 12px;
+                 transition: all 0.2s ease;'
+          title='Concediu - ${day}'>
+          <span style='text-align: left; line-height: 1.2; flex: 1;'>
+            ${row.user.lastName} ${row.user.firstName} - CONCEDIU 🏖️
+          </span>
+          <span style='text-align: right; font-size: 10px; color: #e65100;'>
+            ${dailyNorm ? dailyNorm : ''}
+          </span>
+        </div>`;
+      } else if (row.type === 'task') {
+        const t = row.task;
+        const color = t.color || getTaskColor(row.taskIdx, row.totalTasks);
+        let assigned = '';
+        if (t.employeeIds && t.employeeIds.length > 0) {
+          assigned = ' — ' + t.employeeIds.map(eid => {
+            const emp = employees.find(emp => emp.id === eid);
+            return emp ? (emp.lastName + ' ' + emp.firstName) : '';
+          }).filter(Boolean).join(', ');
+        }
+        html += `<div style="grid-row:${rowIdx};grid-column:1;display:flex;background:#fff;"></div>`;
+        html += `<div class='calendar-task' style="grid-row:${rowIdx};grid-column:2/${displayHours.length+2};display:flex;align-items:center;gap:7px;background:#fff;padding:0 0 0 0;flex-wrap:wrap;">`+
+          `<span class='calendar-task-dot' style='background:${color} !important;margin-right:7px;vertical-align:middle;border:2px solid #fff;box-shadow:0 1px 3px #0001;width:13px;height:13px;aspect-ratio:1/1;border-radius:50%;display:inline-block;'></span>`+
+          `<span style='font-weight:700;color:${color};white-space:normal;word-break:break-word;'>${t.text}</span>`+
+          `<span style='color:${color};font-weight:400;white-space:normal;word-break:break-word;'>${assigned}</span>`+
+        `</div>`;
+      } else if (row.type === 'shift') {
+        const shift = row.shift;
+        const emp = employees.find(e => e.id === shift.employeeId) || {};
+        const firstName = emp.firstName || '';
+        const lastInitial = (emp.lastName && emp.lastName.length > 0) ? emp.lastName[0].toUpperCase() : '';
+        html += `<div class='calendar-emp-label' style="grid-row:${rowIdx};">${firstName} ${lastInitial}</div>`;
+        const startIdx = displayHours.findIndex(hh => {
+          const [h, m] = hh.split(':').map(Number);
+          return h === shift.startHour && m === (shift.startMinute || 0);
+        });
+        let endIdx = displayHours.findIndex(hh => {
+          const [h, m] = hh.split(':').map(Number);
+          return h === shift.endHour && m === (shift.endMinute || 0);
+        });
+        if (endIdx === -1) endIdx = displayHours.length - 1;
+        let barColor = '#27ae60';
+        if (shift.department === 'Emblema') {
+          barColor = '#ffb347';
+        } else if (shift.isResponsabil) {
+          barColor = '#8e44ad';
+        } else if (["Store Manager", "SM Deputy", "SVIM"].includes(shift.department)) {
+          barColor = '#8e44ad';
+        } else if (shift.location === 'Etaj') {
+          barColor = '#4f8cff';
+        } else if (shift.location === 'Parter') {
+          barColor = '#27ae60';
+        }
+        if (shift.isResponsabilInventar) {
+          barColor = '#e74c3c';
+        }
+        let barClass = 'calendar-bar';
+        if (shift.isResponsabilInventar) barClass += ' responsabil-inventar';
+        let weekKey = window.getWeekKey ? window.getWeekKey(currentMonday) : currentMonday.toISOString().slice(0,10);
+        let taskDot = '';
+        let barBorderColor = '';
+        if (shift.employeeId && dayTasks.length > 0) {
+          const totalTasks = dayTasks.length;
+          for (let i = 0; i < dayTasks.length; i++) {
+            const t = dayTasks[i];
+            if (Array.isArray(t.employeeIds) && t.employeeIds.includes(shift.employeeId) && !t.done) {
+              const color = t.color || getTaskColor(i, totalTasks);
+              barBorderColor = color;
+              break;
+            }
           }
         }
+        let gridColStart = startIdx + 2;
+        let gridColEnd = (endIdx >= startIdx ? endIdx + 2 : gridColStart + 1);
+        let extraLabels = '';
+        if (shift.isResponsabilInventar) extraLabels += ' (Inventar)';
+        if (shift.isResponsabil) extraLabels += ' (DESCHIDERE/INCHIDERE)';
+        html +=
+  `<div class='${barClass}${barBorderColor ? ' calendar-bar-task-border' : ''}' data-employee-id='${shift.employeeId}' data-week-key='${weekKey}' style='grid-row:${rowIdx};grid-column:${gridColStart}/${gridColEnd};background:${barColor};overflow:hidden;position:relative;${barBorderColor ? `border: 4px solid ${barBorderColor} !important;` : ''}'>` +
+    `<span class='calendar-bar-label' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;'>${emp.lastName || ''} ${emp.firstName || ''}${extraLabels} ${String(shift.startHour).padStart(2,'0')}:${String(shift.startMinute||0).padStart(2,'0')}-${String(shift.endHour).padStart(2,'0')}:${String(shift.endMinute||0).padStart(2,'0')}${shift.location ? (shift.location !== 'Implicit' ? ', ' + shift.location : '') : ''}</span>` +
+  `</div>`;
       }
-      let gridColStart = startIdx + 2;
-      let gridColEnd = (endIdx >= startIdx ? endIdx + 2 : gridColStart + 1);
-      // Compose label with (Inventar) and (DESCHIDERE/INCHIDERE) if needed
-      let extraLabels = '';
-      if (shift.isResponsabilInventar) extraLabels += ' (Inventar)';
-      if (shift.isResponsabil) extraLabels += ' (DESCHIDERE/INCHIDERE)';
-      html += `<div class='${barClass}' data-employee-id='${shift.employeeId}' data-week-key='${weekKey}' style='grid-row:${shiftRowIdx};grid-column:${gridColStart}/${gridColEnd};background:${barColor};overflow:hidden;'>` +
-        `<span class='calendar-bar-label' style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-flex;align-items:center;'>${taskDot}${emp.lastName || ''} ${emp.firstName || ''}${extraLabels} ${String(shift.startHour).padStart(2,'0')}:${String(shift.startMinute||0).padStart(2,'0')}-${String(shift.endHour).padStart(2,'0')}:${String(shift.endMinute||0).padStart(2,'0')}${shift.location ? (shift.location !== 'Implicit' ? ', ' + shift.location : '') : ''}</span>` +
-        `</div>`;
     }
-    baseRow = shiftRowIdx + 1;
+    baseRow = rowIdx + 1;
   }
   html += `</div></div>`;
   calendarList.innerHTML = html;
+
+  // --- Modal pentru preferință ---
+  if (!document.getElementById('userPreferenceModal')) {
+    const modal = document.createElement('div');
+    modal.id = 'userPreferenceModal';
+    modal.style.display = 'none';
+    modal.style.position = 'fixed';
+    modal.style.top = '50%';
+    modal.style.left = '50%';
+    modal.style.transform = 'translate(-50%, -50%)';
+    modal.style.background = '#fff';
+    modal.style.zIndex = '100001';
+    modal.style.boxShadow = '0 8px 32px #0003';
+    modal.style.borderRadius = '18px';
+    modal.style.padding = '32px 24px';
+    modal.style.minWidth = '280px';
+    modal.innerHTML = `
+      <div style='font-size:1.08em;font-weight:700;margin-bottom:18px;color:#1976d2;text-align:center;letter-spacing:0.3px;'>Propune program pentru <span id='modalDayLabel'></span></div>
+      <div style='width:100%;display:flex;flex-direction:column;gap:10px;'>
+        <label style='font-weight:600;color:#1976d2;margin-bottom:2px;font-size:1.08em;'>Ora început:</label>
+        <div style='display:flex;gap:8px;'>
+          <input id='customStartHour' type='number' min='7' max='22' value='8' style='width:60px;font-size:1.08em;padding:10px 8px;border-radius:10px;border:2px solid #1976d2;background:#f3f7fa;color:#222;font-weight:600;text-align:center;'>
+          <span style='font-size:1.08em;font-weight:700;color:#1976d2;align-self:center;'>:</span>
+          <input id='customStartMinute' type='number' min='0' max='59' value='00' style='width:60px;font-size:1.08em;padding:10px 8px;border-radius:10px;border:2px solid #1976d2;background:#f3f7fa;color:#222;font-weight:600;text-align:center;'>
+        </div>
+        <label style='font-weight:600;color:#1976d2;margin-bottom:2px;font-size:1.08em;'>Ora sfârșit:</label>
+        <div style='display:flex;gap:8px;'>
+          <input id='customEndHour' type='number' min='7' max='22' value='16' style='width:60px;font-size:1.08em;padding:10px 8px;border-radius:10px;border:2px solid #1976d2;background:#f3f7fa;color:#222;font-weight:600;text-align:center;'>
+          <span style='font-size:1.08em;font-weight:700;color:#1976d2;align-self:center;'>:</span>
+          <input id='customEndMinute' type='number' min='0' max='59' value='00' style='width:60px;font-size:1.08em;padding:10px 8px;border-radius:10px;border:2px solid #1976d2;background:#f3f7fa;color:#222;font-weight:600;text-align:center;'>
+        </div>
+      </div>
+      <button id='sendPreferenceBtn' style='width:100%;background:#1976d2;color:#fff;font-weight:700;font-size:0.98em;padding:8px 0;border-radius:10px;border:none;box-shadow:0 2px 8px #1976d2a1;cursor:pointer;margin-top:12px;margin-bottom:6px;transition:background 0.2s;'>Trimite preferința</button>
+      <button id='closePreferenceModalBtn' style='width:100%;background:#f5f5f5;color:#444;font-weight:600;font-size:0.98em;padding:8px 0;border-radius:10px;border:none;box-shadow:0 1px 4px #0001;cursor:pointer;'>Anulează</button>
+      <div id='preferenceStatusMsg' style='margin-top:14px;font-size:1.08em;color:#1976d2;text-align:center;'></div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  // --- Logica de deschidere modal ---
+  document.querySelectorAll('.user-preference-btn').forEach(btn => {
+    btn.onclick = function() {
+      const day = btn.getAttribute('data-day');
+      document.getElementById('modalDayLabel').textContent = day;
+      document.getElementById('userPreferenceModal').style.display = 'block';
+      document.getElementById('customStartHour').value = '8';
+      document.getElementById('customStartMinute').value = '00';
+      document.getElementById('customEndHour').value = '16';
+      document.getElementById('customEndMinute').value = '00';
+      // --- Premium UI pentru lista cu preferințe și butonul hide/unhide ---
+      const userId = window.userId || localStorage.getItem('userId');
+      if (window.firebase && window.firebase.firestore && userId) {
+        const db = window.firebase.firestore();
+        const monday = window.currentMonday || (window.getMondayOf ? window.getMondayOf(new Date()) : new Date());
+        const weekKey = window.getWeekKey ? window.getWeekKey(monday) : monday.toISOString().slice(0,10);
+        db.collection('workPreferences')
+          .where('userId', '==', userId)
+          .where('weekKey', '==', weekKey)
+          // eliminat filtrul după status pentru a afișa toate preferințele
+          .get()
+          .then((allSnap) => {
+            let html = `<button id='togglePrefListBtn' style='background:linear-gradient(90deg,#1976d2,#2196f3);color:#fff;font-weight:700;border:none;border-radius:14px;padding:12px 22px;margin-bottom:12px;cursor:pointer;box-shadow:0 4px 16px #1976d2a1;font-size:0.92em;letter-spacing:0.3px;transition:background 0.2s,box-shadow 0.2s;'>Afișează preferințele trimise</button>`;
+            html += `<div id='prefListContainer' style='display:none;margin-bottom:12px;'></div>`;
+            document.getElementById('preferenceStatusMsg').innerHTML = html;
+            const prefListDiv = document.getElementById('prefListContainer');
+            let listHtml = `<div style="margin-bottom:12px;font-size:1.08em;color:#1976d2;font-weight:700;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;"><span style='font-size:1.18em;'>📋</span>Preferințe deja trimise:</div>`;
+            if (allSnap.empty) {
+              listHtml += '<div style="color:#888;font-size:1.08em;margin-bottom:10px;text-align:center;">Nicio preferință trimisă.</div>';
+            } else {
+              allSnap.forEach(doc => {
+                const p = doc.data();
+                let statusColor = p.status === 'approved' ? '#27ae60' : (p.status === 'pending' ? '#fbc02d' : '#e74c3c');
+                let statusLabel = p.status === 'approved' ? 'Aprobată' : (p.status === 'pending' ? 'În așteptare' : 'Respinsă');
+                listHtml += `<div style='background:linear-gradient(90deg,#f3f7fa,#e3eafc);border-radius:14px;padding:12px 18px;margin-bottom:10px;box-shadow:0 2px 12px #1976d2a1;display:flex;align-items:center;gap:12px;'>
+                  <span style='font-size:1.08em;font-weight:700;color:#1976d2;min-width:80px;'>${p.day}</span>
+                  <span style='font-size:1.08em;color:#223046;font-weight:600;'>${String(p.startHour).padStart(2,'0')}:${String(p.startMinute).padStart(2,'0')} - ${String(p.endHour).padStart(2,'0')}:${String(p.endMinute).padStart(2,'0')}</span>
+                  <span style='font-size:1.08em;font-weight:700;color:${statusColor};margin-left:auto;border-radius:8px;padding:4px 12px;background:${statusColor}22;box-shadow:0 1px 6px ${statusColor}22;'>${statusLabel}</span>
+                </div>`;
+              });
+            }
+            prefListDiv.innerHTML = listHtml;
+            let shown = false;
+            document.getElementById('togglePrefListBtn').onmouseenter = function() {
+              this.style.boxShadow = '0 6px 24px #2196f3a1';
+            };
+            document.getElementById('togglePrefListBtn').onmouseleave = function() {
+              this.style.boxShadow = '0 4px 16px #1976d2a1';
+            };
+            document.getElementById('togglePrefListBtn').onclick = function() {
+              shown = !shown;
+              prefListDiv.style.display = shown ? 'block' : 'none';
+              this.textContent = shown ? 'Ascunde preferințele trimise' : 'Afișează preferințele trimise';
+              this.style.background = shown ? 'linear-gradient(90deg,#2196f3,#1976d2)' : 'linear-gradient(90deg,#1976d2,#2196f3)';
+              this.style.boxShadow = shown ? '0 8px 32px #2196f3a1' : '0 4px 16px #1976d2a1';
+            };
+          });
+      } else {
+        document.getElementById('preferenceStatusMsg').textContent = '';
+      }
+    };
+  });
+  document.getElementById('closePreferenceModalBtn').onclick = function() {
+    document.getElementById('userPreferenceModal').style.display = 'none';
+  };
+  // --- Logica de trimitere preferință (doar UI, fără Firebase încă) ---
+  document.getElementById('sendPreferenceBtn').onclick = function() {
+    const day = document.getElementById('modalDayLabel').textContent;
+    const startHour = document.getElementById('customStartHour').value;
+    const startMinute = document.getElementById('customStartMinute').value;
+    const endHour = document.getElementById('customEndHour').value;
+    const endMinute = document.getElementById('customEndMinute').value;
+    if (!startHour || !startMinute || !endHour || !endMinute) {
+      document.getElementById('preferenceStatusMsg').textContent = 'Completează ambele ore!';
+      return;
+    }
+    const start = `${startHour.padStart(2,'0')}:${startMinute}`;
+    const end = `${endHour.padStart(2,'0')}:${endMinute}`;
+    const userId = window.userId || localStorage.getItem('userId');
+    if (!userId) {
+      document.getElementById('preferenceStatusMsg').textContent = 'Eroare: utilizator neautentificat!';
+      return;
+    }
+    if (window.firebase && window.firebase.firestore) {
+      const db = window.firebase.firestore();
+      const monday = window.currentMonday || (window.getMondayOf ? window.getMondayOf(new Date()) : new Date());
+      const weekKey = window.getWeekKey ? window.getWeekKey(monday) : monday.toISOString().slice(0,10);
+      // Verifică dacă există deja tură aprobată pentru această zi
+      db.collection('shifts')
+        .where('employeeId', '==', userId)
+        .where('day', '==', day)
+        .where('weekKey', '==', weekKey)
+        .where('status', '==', 'approved')
+        .get()
+        .then((shiftSnap) => {
+          if (!shiftSnap.empty) {
+            document.getElementById('preferenceStatusMsg').innerHTML = '<div style="color:#e74c3c;font-weight:600;margin-top:8px;">Există deja o tură aprobată pentru această zi! Nu puteți trimite o nouă preferință.</div>';
+            return;
+          }
+          // Continuă cu verificarea preferinței duplicate
+          db.collection('workPreferences')
+            .where('userId', '==', userId)
+            .where('weekKey', '==', weekKey)
+            .where('status', 'in', ['pending', 'approved'])
+            .get()
+            .then((allSnap) => {
+              let html = `<button id='togglePrefListBtn' style='background:#f3f7fa;color:#1976d2;font-weight:600;border:none;border-radius:8px;padding:7px 16px;margin-bottom:8px;cursor:pointer;'>Afișează preferințele trimise</button>`;
+              html += `<div id='prefListContainer' style='display:none;margin-bottom:10px;font-size:1em;color:#1976d2;font-weight:600;'></div>`;
+              document.getElementById('preferenceStatusMsg').innerHTML = html;
+              const prefListDiv = document.getElementById('prefListContainer');
+              let listHtml = '<div style="margin-bottom:10px;font-size:1em;color:#1976d2;font-weight:600;">Preferințe deja trimise:</div>';
+              if (allSnap.empty) {
+                listHtml += '<div style="color:#888;font-size:0.98em;margin-bottom:8px;">Nicio preferință trimisă.</div>';
+              } else {
+                allSnap.forEach(doc => {
+                  const p = doc.data();
+                  listHtml += `<div style='background:#f3f7fa;border-radius:7px;padding:7px 12px;margin-bottom:6px;box-shadow:0 1px 4px #0001;'>${p.day}: ${String(p.startHour).padStart(2,'0')}:${String(p.startMinute).padStart(2,'0')} - ${String(p.endHour).padStart(2,'0')}:${String(p.endMinute).padStart(2,'0')} <span style='color:#888;font-size:0.95em;'>(${p.status})</span></div>`;
+                });
+              }
+              prefListDiv.innerHTML = listHtml;
+              let shown = false;
+              document.getElementById('togglePrefListBtn').onclick = function() {
+                shown = !shown;
+                prefListDiv.style.display = shown ? 'block' : 'none';
+                this.textContent = shown ? 'Ascunde preferințele trimise' : 'Afișează preferințele trimise';
+              };
+              // După afișare, continuă cu verificarea duplicatului pentru ziua selectată
+              const duplicate = allSnap.docs.find(doc => {
+                const p = doc.data();
+                return p.day === day;
+              });
+              if (duplicate) {
+                document.getElementById('preferenceStatusMsg').innerHTML += '<div style="color:#e74c3c;font-weight:600;margin-top:8px;">Există deja o preferință pentru această zi!</div>';
+                return;
+              }
+              // Dacă nu există duplicat, salvează preferința nouă
+              db.collection('workPreferences').add({
+                userId,
+                day,
+                startHour: parseInt(startHour, 10),
+                startMinute: parseInt(startMinute, 10),
+                endHour: parseInt(endHour, 10),
+                endMinute: parseInt(endMinute, 10),
+                weekKey,
+                status: 'pending',
+                timestamp: new Date()
+              }).then(() => {
+                document.getElementById('preferenceStatusMsg').innerHTML += `<div style='color:#27ae60;font-weight:600;margin-top:8px;'>Preferința pentru ${day} (${start} - ${end}) a fost trimisă!</div>`;
+                setTimeout(() => {
+                  document.getElementById('userPreferenceModal').style.display = 'none';
+                }, 1200);
+              }).catch((err) => {
+                document.getElementById('preferenceStatusMsg').innerHTML += '<div style="color:#e74c3c;">Eroare la trimitere!</div>';
+              });
+            })
+            .catch((err) => {
+              document.getElementById('preferenceStatusMsg').innerHTML = '<div style="color:#e74c3c;">Eroare la verificare!</div>';
+            });
+        });
+    } else {
+      document.getElementById('preferenceStatusMsg').textContent = 'Firebase nu este disponibil!';
+    }
+  };
 }
 
 // --- Event Listeners ---
@@ -964,9 +1303,125 @@ nextBtn.onclick = function(e) {
 // --- GLOBAL HOURS FILTER: ensure window.HOURS never contains slots after 22:30 ---
 // Eliminat modificarea globală window.HOURS! Folosește doar localHours în renderUserCalendar
 
+
 document.addEventListener('DOMContentLoaded', () => {
   window.currentMonday = currentMonday;
   renderUserCalendar();
+  // Buton logout user
+  const logoutBtn = document.getElementById('userLogoutBtn');
+  if (logoutBtn) {
+    logoutBtn.onclick = function() {
+      localStorage.removeItem('userId');
+      window.location.href = 'login.html';
+    };
+  }
+  // Modal for all leave hours (style injected once)
+  if (!document.getElementById('all-leave-hours-modal-style')) {
+    const style = document.createElement('style');
+    style.id = 'all-leave-hours-modal-style';
+    style.innerHTML = `
+      .all-leave-hours-modal-overlay {
+        position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.25); z-index: 99999; display: flex; align-items: center; justify-content: center;
+        animation: fadeIn .2s;
+      }
+      .all-leave-hours-modal {
+        background: #fff; border-radius: 14px; box-shadow: 0 8px 32px #0003;
+        padding: 28px 22px 18px 22px; min-width: 260px; max-width: 95vw; width: 420px;
+        font-family: inherit; color: #222; position: relative;
+        animation: popIn .2s;
+        max-height: 80vh; overflow-y: auto;
+      }
+      .all-leave-hours-modal h2 {
+        margin: 0 0 10px 0; font-size: 1.25em; color: #ed7d55; font-weight: 700;
+      }
+      .all-leave-hours-modal .close-btn {
+        position: absolute; top: 10px; right: 14px; font-size: 1.3em; color: #888; background: none; border: none; cursor: pointer; transition: color .15s;
+      }
+      .all-leave-hours-modal .close-btn:hover { color: #d32f2f; }
+      .all-leave-hours-table {
+        width: 100%; border-collapse: collapse; margin-top: 10px;
+      }
+      .all-leave-hours-table th, .all-leave-hours-table td {
+        border: 1px solid #eee; padding: 7px 8px; text-align: left; font-size: 1em;
+      }
+      .all-leave-hours-table th {
+        background: #fbe9e7; color: #ed7d55; font-weight: 700;
+      }
+      .all-leave-hours-table td {
+        background: #fff;
+      }
+      .all-leave-hours-table tr:nth-child(even) td {
+        background: #f9f9f9;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  // Attach event for leave hours button after profile is rendered
+  setTimeout(() => {
+    const allLeaveBtn = document.getElementById('showAllLeaveHoursBtn');
+    if (allLeaveBtn) {
+      allLeaveBtn.onclick = async function() {
+        // Fetch data for current week
+        const weekKey = window.getWeekKey ? window.getWeekKey(window.currentMonday) : window.currentMonday.toISOString().slice(0,10);
+        let employees = [];
+        let allLeaves = [];
+        let error = '';
+        let loggedUserId = window.userId || (window.currentUser && window.currentUser.id) || localStorage.getItem('userId');
+        let emp = null;
+        if (window.firebase && window.firebase.firestore) {
+          const db = firebase.firestore();
+          try {
+            const employeesSnap = await db.collection('employees').get();
+            employees = employeesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            emp = employees.find(e => e.id === loggedUserId);
+            const leavesSnap = await db.collection('leaves').where('weekKey', '==', weekKey).get();
+            allLeaves = leavesSnap.docs.map(doc => doc.data());
+          } catch (e) { error = e.message || 'Eroare la încărcarea datelor.'; }
+        }
+        // Build leave map
+        const leaveMap = {};
+        for (const leave of allLeaves) {
+          if (leave.employeeId) leaveMap[leave.employeeId] = leave;
+        }
+        // Build table row only for logged-in user
+        let rows = [];
+        if (emp) {
+          let leave = leaveMap[emp.id];
+          let leaveDays = (leave && Array.isArray(leave.days)) ? leave.days.length : 0;
+          let norma = parseFloat(emp.norma);
+          let leaveHours = (!isNaN(norma) && norma > 0 && leaveDays > 0) ? Math.round((norma / 5) * leaveDays * 10) / 10 : 0;
+          rows.push({
+            name: (emp.lastName || '') + ' ' + (emp.firstName || ''),
+            department: emp.department || '-',
+            leaveDays,
+            leaveHours: leaveHours > 0 ? leaveHours + 'h' : '',
+            days: leave && Array.isArray(leave.days) ? leave.days.join(', ') : ''
+          });
+        }
+        // Modal HTML
+        const overlay = document.createElement('div');
+        overlay.className = 'all-leave-hours-modal-overlay';
+        overlay.onclick = function(ev) { if (ev.target === overlay) document.body.removeChild(overlay); };
+        const modal = document.createElement('div');
+        modal.className = 'all-leave-hours-modal';
+        modal.innerHTML = `
+          <button class='close-btn' title='Închide'>&times;</button>
+          <h2>Ore concediu angajat (săptămâna curentă)</h2>
+          ${error ? `<div style='color:#b00;text-align:center;margin-bottom:12px;'>${error}</div>` : ''}
+          <table class='all-leave-hours-table'>
+            <thead><tr><th>Angajat</th><th>Departament</th><th>Zile concediu</th><th>Ore concediu</th><th>Zile</th></tr></thead>
+            <tbody>
+              ${rows.map(r => `<tr><td>${r.name}</td><td>${r.department}</td><td style='text-align:center;'>${r.leaveDays || ''}</td><td style='text-align:center;'>${r.leaveHours}</td><td>${r.days}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        `;
+        modal.querySelector('.close-btn').onclick = () => document.body.removeChild(overlay);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+      };
+    }
+  }, 0);
 });
 
 // Expose for debugging
