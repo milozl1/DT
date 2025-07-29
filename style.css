@@ -632,29 +632,194 @@ body {
 .sidebar h2 {
   margin-top: 0;
 }
+
+
+/* --- PROFESSIONAL MINIMALIST SIDEBAR BUTTONS --- */
 .sidebar button,
 #addEmployeeBtn,
-#tasksBtn {
+#tasksBtn,
+#logoutBtn,
+#leaveBtn {
   width: 100%;
-  padding: 12px 0;
-  margin-bottom: 12px;
+  padding: 12px 32px;
+  margin-bottom: 9px;
   border: none;
-  border-radius: 8px;
-  font-size: 1.1em;
+  border-radius: 7px;
+  font-size: 1.08em;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  background: #f7f8fa;
+  color: #223046;
+  box-shadow: none;
+  transition: background 0.15s, color 0.15s, outline 0.15s;
+  outline: none;
+  letter-spacing: 0.01em;
+  box-sizing: border-box;
+}
+
+.sidebar-buttons {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+#logoutBtn {
+  background: #f9eaea;
+  color: #b71c1c;
+}
+#logoutBtn:hover, #logoutBtn:focus {
+  background: #f2bcbc;
+  color: #fff;
 }
 #addEmployeeBtn {
-  background: #19c6a7;
-  color: #fff;
+  background: #e6f7f4;
+  color: #00796b;
+}
+#addEmployeeBtn:hover, #addEmployeeBtn:focus {
+  background: #b2e6de;
+  color: #00796b;
 }
 #tasksBtn {
-  background: #4285f4;
-  color: #fff;
+  background: #e7f0fa;
+  color: #223046;
 }
-#addEmployeeBtn:hover, #tasksBtn:hover {
-  filter: brightness(0.95);
+#tasksBtn:hover, #tasksBtn:focus {
+  background: #c6dbf7;
+  color: #223046;
+}
+#leaveBtn {
+  background: #fff8e1;
+  color: #b28704;
+}
+#leaveBtn:hover, #leaveBtn:focus {
+  background: #ffe082;
+  color: #b28704;
+}
+.sidebar button:focus-visible,
+#addEmployeeBtn:focus-visible,
+#tasksBtn:focus-visible,
+#logoutBtn:focus-visible,
+#leaveBtn:focus-visible {
+  outline: 2px solid #4f8cff;
+  outline-offset: 1.5px;
+}
+
+/* --- PROFESSIONAL MINIMALIST MODAL ACTION BUTTONS --- */
+.shift-modal-save, .employee-modal-save {
+  background: #e6f7f4;
+  color: #00796b;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 22px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.15s, color 0.15s, outline 0.15s;
+}
+.shift-modal-save:hover, .employee-modal-save:hover,
+.shift-modal-save:focus, .employee-modal-save:focus {
+  background: #b2e6de;
+  color: #00796b;
+}
+.shift-modal-delete {
+  background: #f9eaea;
+  color: #b71c1c;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 18px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.15s, color 0.15s, outline 0.15s;
+}
+.shift-modal-delete:hover, .shift-modal-delete:focus {
+  background: #f2bcbc;
+  color: #b71c1c;
+}
+.employee-modal-cancel {
+  background: #f7f8fa;
+  color: #223046;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 18px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 0.15s, color 0.15s, outline 0.15s;
+}
+.employee-modal-cancel:hover, .employee-modal-cancel:focus {
+  background: #e0e7ef;
+  color: #223046;
+}
+.shift-modal-save:focus-visible, .employee-modal-save:focus-visible,
+.shift-modal-delete:focus-visible, .employee-modal-cancel:focus-visible {
+  outline: 2px solid #4f8cff;
+  outline-offset: 1.5px;
+}
+
+/* --- MODERN MODAL ACTION BUTTONS --- */
+.shift-modal-save, .employee-modal-save {
+  background: linear-gradient(90deg, #b2f7ef 0%, #6ed3cf 100%);
+  color: #00796b;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 26px;
+  font-size: 1.08em;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 12px #6ed3cf30;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+.shift-modal-save:hover, .employee-modal-save:hover,
+.shift-modal-save:focus, .employee-modal-save:focus {
+  background: linear-gradient(90deg, #6ed3cf 0%, #b2f7ef 100%);
+  color: #fff;
+  box-shadow: 0 4px 18px #6ed3cf50;
+  transform: translateY(-2px) scale(1.03);
+}
+.shift-modal-delete {
+  background: linear-gradient(90deg, #ffb3b3 0%, #ff8a80 100%);
+  color: #b71c1c;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 22px;
+  font-size: 1.08em;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 12px #ff8a8030;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+.shift-modal-delete:hover, .shift-modal-delete:focus {
+  background: linear-gradient(90deg, #ff8a80 0%, #ffb3b3 100%);
+  color: #fff;
+  box-shadow: 0 4px 18px #ff8a8050;
+  transform: translateY(-2px) scale(1.03);
+}
+.employee-modal-cancel {
+  background: linear-gradient(90deg, #e0e7ef 0%, #f4f6fa 100%);
+  color: #223046;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 22px;
+  font-size: 1.08em;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 12px #e0e7ef30;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.18s;
+}
+.employee-modal-cancel:hover, .employee-modal-cancel:focus {
+  background: linear-gradient(90deg, #f4f6fa 0%, #e0e7ef 100%);
+  color: #00796b;
+  box-shadow: 0 4px 18px #e0e7ef50;
+  transform: translateY(-2px) scale(1.03);
+}
+.shift-modal-save:focus-visible, .employee-modal-save:focus-visible,
+.shift-modal-delete:focus-visible, .employee-modal-cancel:focus-visible {
+  outline: 3px solid #4f8cff;
+  outline-offset: 2px;
 }
 #employeeList {
   margin-top: 30px;

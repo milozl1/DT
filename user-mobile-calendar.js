@@ -913,7 +913,7 @@ async function renderUserCalendar() {
     // --- Day name on its own grid row ---
 html += `<div class='calendar-day-label' style="overflow-x:auto;white-space:normal;display:flex;align-items:center;justify-content:space-between;gap:0;max-width:100vw;background:#fff;font-weight:700;padding:0 0 0 0;">`
   + `<div style='font-weight:700;min-width:60px;flex-shrink:0;display:inline-block;margin-bottom:0;'>${day}</div>`
-  + `<button class='user-preference-btn' data-day='${day}' style='margin-left:auto;padding:3px 10px;border-radius:7px;border:none;background:#1976d2;color:#fff;font-weight:500;cursor:pointer;font-size:0.92em;display:inline-block;line-height:1;'>Orar</button>`
+  + `<button class='user-preference-btn' data-day='${day}' disabled style='margin-left:auto;padding:3px 10px;border-radius:7px;border:none;background:#e0e0e0;color:#888;font-weight:500;cursor:not-allowed;font-size:0.92em;display:inline-block;line-height:1;opacity:0.6;'>Orar</button>`
   + `</div>`;
     // --- Build rowsForDay: leave, tasks, shifts ---
     let rowsForDay = [];
@@ -1118,67 +1118,7 @@ html += `<div class='calendar-day-label' style="overflow-x:auto;white-space:norm
   }
 
   // --- Logica de deschidere modal ---
-  document.querySelectorAll('.user-preference-btn').forEach(btn => {
-    btn.onclick = function() {
-      const day = btn.getAttribute('data-day');
-      document.getElementById('modalDayLabel').textContent = day;
-      document.getElementById('userPreferenceModal').style.display = 'block';
-      document.getElementById('customStartHour').value = '8';
-      document.getElementById('customStartMinute').value = '00';
-      document.getElementById('customEndHour').value = '16';
-      document.getElementById('customEndMinute').value = '00';
-      // --- Premium UI pentru lista cu preferințe și butonul hide/unhide ---
-      const userId = window.userId || localStorage.getItem('userId');
-      if (window.firebase && window.firebase.firestore && userId) {
-        const db = window.firebase.firestore();
-        const monday = window.currentMonday || (window.getMondayOf ? window.getMondayOf(new Date()) : new Date());
-        const weekKey = window.getWeekKey ? window.getWeekKey(monday) : monday.toISOString().slice(0,10);
-        db.collection('workPreferences')
-          .where('userId', '==', userId)
-          .where('weekKey', '==', weekKey)
-          // eliminat filtrul după status pentru a afișa toate preferințele
-          .get()
-          .then((allSnap) => {
-            let html = `<button id='togglePrefListBtn' style='background:linear-gradient(90deg,#1976d2,#2196f3);color:#fff;font-weight:700;border:none;border-radius:14px;padding:12px 22px;margin-bottom:12px;cursor:pointer;box-shadow:0 4px 16px #1976d2a1;font-size:0.92em;letter-spacing:0.3px;transition:background 0.2s,box-shadow 0.2s;'>Afișează preferințele trimise</button>`;
-            html += `<div id='prefListContainer' style='display:none;margin-bottom:12px;'></div>`;
-            document.getElementById('preferenceStatusMsg').innerHTML = html;
-            const prefListDiv = document.getElementById('prefListContainer');
-            let listHtml = `<div style="margin-bottom:12px;font-size:1.08em;color:#1976d2;font-weight:700;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;"><span style='font-size:1.18em;'>📋</span>Preferințe deja trimise:</div>`;
-            if (allSnap.empty) {
-              listHtml += '<div style="color:#888;font-size:1.08em;margin-bottom:10px;text-align:center;">Nicio preferință trimisă.</div>';
-            } else {
-              allSnap.forEach(doc => {
-                const p = doc.data();
-                let statusColor = p.status === 'approved' ? '#27ae60' : (p.status === 'pending' ? '#fbc02d' : '#e74c3c');
-                let statusLabel = p.status === 'approved' ? 'Aprobată' : (p.status === 'pending' ? 'În așteptare' : 'Respinsă');
-                listHtml += `<div style='background:linear-gradient(90deg,#f3f7fa,#e3eafc);border-radius:14px;padding:12px 18px;margin-bottom:10px;box-shadow:0 2px 12px #1976d2a1;display:flex;align-items:center;gap:12px;'>
-                  <span style='font-size:1.08em;font-weight:700;color:#1976d2;min-width:80px;'>${p.day}</span>
-                  <span style='font-size:1.08em;color:#223046;font-weight:600;'>${String(p.startHour).padStart(2,'0')}:${String(p.startMinute).padStart(2,'0')} - ${String(p.endHour).padStart(2,'0')}:${String(p.endMinute).padStart(2,'0')}</span>
-                  <span style='font-size:1.08em;font-weight:700;color:${statusColor};margin-left:auto;border-radius:8px;padding:4px 12px;background:${statusColor}22;box-shadow:0 1px 6px ${statusColor}22;'>${statusLabel}</span>
-                </div>`;
-              });
-            }
-            prefListDiv.innerHTML = listHtml;
-            let shown = false;
-            document.getElementById('togglePrefListBtn').onmouseenter = function() {
-              this.style.boxShadow = '0 6px 24px #2196f3a1';
-            };
-            document.getElementById('togglePrefListBtn').onmouseleave = function() {
-              this.style.boxShadow = '0 4px 16px #1976d2a1';
-            };
-            document.getElementById('togglePrefListBtn').onclick = function() {
-              shown = !shown;
-              prefListDiv.style.display = shown ? 'block' : 'none';
-              this.textContent = shown ? 'Ascunde preferințele trimise' : 'Afișează preferințele trimise';
-              this.style.background = shown ? 'linear-gradient(90deg,#2196f3,#1976d2)' : 'linear-gradient(90deg,#1976d2,#2196f3)';
-              this.style.boxShadow = shown ? '0 8px 32px #2196f3a1' : '0 4px 16px #1976d2a1';
-            };
-          });
-      } else {
-        document.getElementById('preferenceStatusMsg').textContent = '';
-      }
-    };
-  });
+// ...existing code...
   document.getElementById('closePreferenceModalBtn').onclick = function() {
     document.getElementById('userPreferenceModal').style.display = 'none';
   };
@@ -1307,12 +1247,22 @@ nextBtn.onclick = function(e) {
 document.addEventListener('DOMContentLoaded', () => {
   window.currentMonday = currentMonday;
   renderUserCalendar();
-  // Buton logout user
-  const logoutBtn = document.getElementById('userLogoutBtn');
-  if (logoutBtn) {
-    logoutBtn.onclick = function() {
+  // Handler global pentru logout (event delegation)
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.id === 'userLogoutBtn') {
       localStorage.removeItem('userId');
+      localStorage.removeItem('adminLoggedIn');
+      localStorage.clear(); // opțional, dacă vrei să cureți tot
       window.location.href = 'login.html';
+    }
+  });
+  // Nu mai e nevoie de attachLogoutHandler, handlerul global acoperă orice re-render
+  // Dar păstrăm override-ul pentru renderUserCalendar dacă există logică suplimentară
+  if (window.renderUserCalendar) {
+    const origRender = window.renderUserCalendar;
+    window.renderUserCalendar = async function() {
+      await origRender.apply(this, arguments);
+      // nu mai e nevoie de attachLogoutHandler
     };
   }
   // Modal for all leave hours (style injected once)

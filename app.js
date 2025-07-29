@@ -612,6 +612,9 @@ function openShiftEditModal(shift) {
               <option value="Etaj">Etaj</option>
             </select>
           </div>
+          <div class="shift-modal-row">
+            <label><input type="checkbox" id="editShiftResponsabil"> Responsabil deschidere/închidere/numărat case/acte/trezor</label>
+          </div>
           <div class="shift-modal-actions">
             <button type="submit" class="shift-modal-save">Salvează</button>
             <button type="button" id="deleteShiftBtn" class="shift-modal-delete">Șterge</button>
@@ -629,6 +632,8 @@ function openShiftEditModal(shift) {
   document.getElementById('editShiftEndHour').value = shift.endHour;
   document.getElementById('editShiftEndMinute').value = shift.endMinute;
   document.getElementById('editShiftLocation').value = shift.location || 'Implicit';
+  // Setează checkbox responsabil dacă există
+  document.getElementById('editShiftResponsabil').checked = !!shift.isResponsabil;
   showModalWithBackdrop(modal);
   modal.querySelector('.close').onclick = () => { hideModalWithBackdrop(modal); };
   document.getElementById('shiftEditForm').onsubmit = async function(e) {
@@ -644,6 +649,7 @@ function openShiftEditModal(shift) {
       return;
     }
     let location = document.getElementById('editShiftLocation').value;
+    const isResponsabil = document.getElementById('editShiftResponsabil').checked;
     try {
       let shiftDoc = await db.collection('shifts').doc(id).get();
       let shiftData = shiftDoc.data();
@@ -655,7 +661,7 @@ function openShiftEditModal(shift) {
       // --- CORECȚIE: recalculare weekKey ca luni pentru data de start a turei ---
       let weekDate = shiftData && shiftData.weekKey ? (window.getMondayFromWeekKey ? window.getMondayFromWeekKey(shiftData.weekKey) : new Date(shiftData.weekKey)) : (window.currentMonday || new Date());
       let weekKey = window.getWeekKey ? window.getWeekKey(weekDate) : weekDate.toISOString().slice(0,10);
-      await db.collection('shifts').doc(id).update({ startHour, startMinute, endHour, endMinute, location, weekKey });
+      await db.collection('shifts').doc(id).update({ startHour, startMinute, endHour, endMinute, location, weekKey, isResponsabil });
       hideModalWithBackdrop(modal);
       // --- MODIFICARE: păstrează săptămâna activă după editare ---
       if (shiftData && shiftData.weekKey) {
@@ -1341,9 +1347,19 @@ function openMassShiftModal() {
   fillSelect('massShiftStartMinute', 0, 59, true);
   fillSelect('massShiftEndMinute', 0, 59, true);
 
-  // Preset orar: la selectare, completează automat orele
+  // Reset preset orar și ore la deschiderea modalului
   const presetSelect = modal.querySelector('#massShiftPresetInterval');
   if (presetSelect) {
+    presetSelect.value = '';
+    // Setează orele la valorile implicite (prima opțiune din select)
+    const startHourSel = modal.querySelector('#massShiftStartHour');
+    const startMinuteSel = modal.querySelector('#massShiftStartMinute');
+    const endHourSel = modal.querySelector('#massShiftEndHour');
+    const endMinuteSel = modal.querySelector('#massShiftEndMinute');
+    if (startHourSel && startHourSel.options.length > 0) startHourSel.selectedIndex = 0;
+    if (startMinuteSel && startMinuteSel.options.length > 0) startMinuteSel.selectedIndex = 0;
+    if (endHourSel && endHourSel.options.length > 0) endHourSel.selectedIndex = 0;
+    if (endMinuteSel && endMinuteSel.options.length > 0) endMinuteSel.selectedIndex = 0;
     presetSelect.onchange = function() {
       if (!this.value) return;
       const [start, end] = this.value.split('-');
@@ -1545,9 +1561,19 @@ function openAddShiftModal(empId) {
     fillSelect('addShiftStartMinute', 0, 59, true);
     fillSelect('addShiftEndMinute', 0, 59, true);
 
-    // Preset orar
+    // Reset preset orar și ore la deschiderea modalului
     const presetSelect = modal.querySelector('#addShiftPresetInterval');
     if (presetSelect) {
+      presetSelect.value = '';
+      // Setează orele la valorile implicite (prima opțiune din select)
+      const startHourSel = modal.querySelector('#addShiftStartHour');
+      const startMinuteSel = modal.querySelector('#addShiftStartMinute');
+      const endHourSel = modal.querySelector('#addShiftEndHour');
+      const endMinuteSel = modal.querySelector('#addShiftEndMinute');
+      if (startHourSel && startHourSel.options.length > 0) startHourSel.selectedIndex = 0;
+      if (startMinuteSel && startMinuteSel.options.length > 0) startMinuteSel.selectedIndex = 0;
+      if (endHourSel && endHourSel.options.length > 0) endHourSel.selectedIndex = 0;
+      if (endMinuteSel && endMinuteSel.options.length > 0) endMinuteSel.selectedIndex = 0;
       presetSelect.onchange = function() {
         if (!this.value) return;
         const [start, end] = this.value.split('-');
@@ -1599,19 +1625,19 @@ function openAddShiftModal(empId) {
       let location = modal.querySelector('#addShiftLocation').value;
       const isResponsabil = modal.querySelector('#addShiftResponsabil').checked;
       const isResponsabilInventar = modal.querySelector('#addShiftResponsabilInventar').checked;
-      
+
       let monday = window.currentMonday || getMondayOf(new Date());
       let weekKey = getWeekKey(monday);
-      
+
       // Asigură-te că LeaveManager este inițializat
       if (window.LeaveManager) {
         await window.LeaveManager.fetchLeaves(db);
       }
-      
+
       let added = 0;
       let skippedLeave = 0;
       let skippedExisting = 0;
-      
+
       for (const day of days) {
         // Verifică dacă angajatul este în concediu în ziua respectivă
         if (window.LeaveManager && window.LeaveManager.isOnLeave(empId, weekKey, day)) {
@@ -1619,19 +1645,27 @@ function openAddShiftModal(empId) {
           skippedLeave++;
           continue;
         }
-        
+
         // Verifică dacă există deja tură pentru acea zi și săptămână
         const existingShiftsSnap = await db.collection('shifts')
           .where('employeeId', '==', empId)
           .where('day', '==', day)
           .where('weekKey', '==', weekKey)
           .get();
-        
+
         if (!existingShiftsSnap.empty) {
           skippedExisting++;
           continue;
         }
-        
+
+        // Regula pentru locație implicită (la fel ca la mass shift)
+        let loc = location;
+        if (loc === 'Implicit') {
+          if (emp.department === 'Women') loc = 'Parter';
+          else if (emp.department === 'Men' || emp.department === 'Kids') loc = 'Etaj';
+          else loc = 'Implicit';
+        }
+
         // Adaugă tura
         await db.collection('shifts').add({
           name: emp.lastName + ' ' + emp.firstName,
@@ -1644,7 +1678,7 @@ function openAddShiftModal(empId) {
           endMinute,
           department: emp.department,
           employeeId: empId,
-          location: location,
+          location: loc,
           weekKey: weekKey,
           isResponsabil: isResponsabil,
           isResponsabilInventar: isResponsabilInventar

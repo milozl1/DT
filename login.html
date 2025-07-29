@@ -32,146 +32,282 @@
       box-sizing: border-box;
     }
     body {
+      min-height: 100vh;
+      background: linear-gradient(120deg, #4f8cff 0%, #1976d2 100%);
+      background-size: 200% 200%;
+      animation: gradientMove 8s ease-in-out infinite;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      background: #f4f7fb;
       font-family: 'Segoe UI', Arial, sans-serif;
+      overflow: hidden;
+    }
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
     .login-container {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 4px 32px #0001;
-      padding: 32px 18px 28px 18px;
-      max-width: 360px;
+      background: rgba(255,255,255,0.22);
+      border-radius: 20px;
+      box-shadow: 0 10px 48px 0 #1976d270, 0 2px 12px #4f8cff22;
+      padding: 18px 10px 16px 10px;
+      max-width: 250px;
       width: 100%;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.5em;
+      gap: 0.4em;
+      backdrop-filter: blur(18px) saturate(1.6);
+      border: 1.5px solid #e3eafc55;
+      position: relative;
+      animation: popIn .7s cubic-bezier(.23,1.12,.32,1);
+      margin: 4vw auto;
+      box-sizing: border-box;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.92) translateY(40px); opacity: 0; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
     }
     .login-container h2 {
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       color: #223046;
-      font-size: 1.5em;
-      font-weight: 600;
+      font-size: 2.2em;
+      font-weight: 800;
       letter-spacing: 0.01em;
       text-align: center;
+      text-shadow: 0 2px 12px #fff8, 0 1px 0 #fff;
     }
-    .login-container input {
+    .login-container .input-group {
       width: 100%;
-      padding: 14px 14px;
-      margin-bottom: 16px;
-      border: 1px solid #cfd8dc;
-      border-radius: 8px;
-      font-size: 1.08em;
-      background: #f8fafc;
-      transition: border 0.18s;
-      outline: none;
+      max-width: 230px;
+      position: relative;
+      margin-bottom: 10px;
     }
-    .login-container input:focus {
-      border: 1.5px solid #4f8cff;
+    .login-container .input-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #4f8cff;
+      font-size: 1.35em;
+      opacity: 0.8;
+      pointer-events: none;
+      transition: color 0.2s;
+    }
+    .login-container input, .login-container select {
+      width: 100%;
+      max-width: 230px;
+      box-sizing: border-box;
+      padding: 10px 10px 10px 36px;
+      border: 1.5px solid #cfd8dc;
+      border-radius: 10px;
+      font-size: 0.99em;
+      background: rgba(255,255,255,0.82);
+      margin-bottom: 0;
+      transition: border 0.18s, box-shadow 0.18s, background 0.18s;
+      outline: none;
+      box-shadow: 0 2px 10px #4f8cff11;
+      font-weight: 500;
+      color: #223046;
+    }
+    .login-container input:focus, .login-container select:focus {
+      border: 1.7px solid #4f8cff;
       background: #fff;
+      box-shadow: 0 4px 24px #1976d230;
     }
     .login-container button {
       width: 100%;
-      padding: 8px 0;
+      max-width: 230px;
+      padding: 11px 0;
       background: linear-gradient(90deg,#4f8cff 60%,#1976d2 100%);
       color: #fff;
       border: none;
-      border-radius: 8px;
-      font-size: 0.98em;
-      font-weight: 500;
+      border-radius: 10px;
+      font-size: 1.05em;
+      font-weight: 700;
       cursor: pointer;
-      transition: background 0.18s, box-shadow 0.18s;
-      box-shadow: 0 1px 4px #4f8cff22;
-      margin-top: 6px;
+      transition: background 0.18s, box-shadow 0.18s, transform 0.13s;
+      box-shadow: 0 4px 24px #4f8cff22;
+      margin-top: 10px;
+      letter-spacing: 0.01em;
+      text-shadow: 0 1px 8px #1976d230;
+      border-bottom: 2px solid #1976d2;
+    }
+    .login-container button:active {
+      transform: scale(0.97);
     }
     .login-container button:hover, .login-container button:focus {
-      background: #223046;
-      box-shadow: 0 2px 16px #1976d230;
+      background: linear-gradient(90deg,#1976d2 60%,#4f8cff 100%);
+      box-shadow: 0 8px 32px #1976d230;
     }
     .login-error {
       color: #e74c3c;
-      margin-bottom: 12px;
-      font-size: 1em;
+      margin-bottom: 10px;
+      font-size: 1.13em;
       display: none;
       text-align: center;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      background: #fff6f6;
+      border-radius: 8px;
+      padding: 7px 0 5px 0;
+      box-shadow: 0 1px 8px #e74c3c11;
+    }
+    #loginLoader {
+      margin: 10px auto 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     @media (max-width: 600px) {
       .login-container {
-        max-width: 98vw;
-        padding: 18vw 4vw 10vw 4vw;
-        border-radius: 0.8em;
+        max-width: 99vw;
+        min-width: 0;
+        padding: 4vw 1vw 4vw 1vw;
+        border-radius: 1em;
         box-shadow: 0 2px 16px #0002;
       }
       .login-container h2 {
-        font-size: 1.18em;
-        margin-bottom: 16px;
+        font-size: 1.08em;
+        margin-bottom: 7px;
       }
-      .login-container input, .login-container button {
+      .login-container .input-group {
+        max-width: 98vw;
+        margin-bottom: 7px;
+      }
+      .login-container input, .login-container button, .login-container select {
+        font-size: 0.93em;
+        padding: 8px 7px 8px 28px;
+        min-width: 0;
+        max-width: 98vw;
+      }
+      .login-container .input-icon {
         font-size: 0.95em;
-        padding: 7px 8px;
+        left: 6px;
       }
     }
     @media (max-width: 400px) {
       .login-container {
-        padding: 8vw 2vw 6vw 2vw;
+        padding: 1vw 0.5vw 1vw 0.5vw;
+      }
+      .login-container .input-group {
+        max-width: 99vw;
+      }
+      .login-container input, .login-container button, .login-container select {
+        font-size: 0.91em;
+        padding: 7px 5px 7px 22px;
+        max-width: 99vw;
+      }
+      .login-container .input-icon {
+        font-size: 0.88em;
+        left: 4px;
       }
     }
     /* Previne zoom la focus pe input pe iOS */
-/* Previne zoom la focus pe input pe iOS */
-input, select, textarea {
-  font-size: 16px !important;
-}
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  </style>
   </style>
 </head>
 <body>
   <form class="login-container" id="adminLoginForm" autocomplete="off">
-    <h2>Autentificare Admin</h2>
+    <h2>Autentificare</h2>
     <div class="login-error" id="loginError">Utilizator sau parolă greșită!</div>
-    <input type="text" id="username" placeholder="Utilizator" required autofocus autocomplete="off">
-    <input type="password" id="password" placeholder="Parolă" required autocomplete="off">
-    <button type="submit">Login</button>
+    <div class="input-group">
+      <span class="input-icon">🔑</span>
+      <select id="accountType">
+        <option value="admin">Administrator</option>
+        <option value="user">Utilizator</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <span class="input-icon">👤</span>
+      <input type="text" id="username" placeholder="Utilizator" required autofocus autocomplete="off">
+    </div>
+    <div class="input-group">
+      <span class="input-icon">🔒</span>
+      <input type="password" id="password" placeholder="Parolă" required autocomplete="off">
+    </div>
+    <button type="submit" id="loginBtn" disabled>Login</button>
+    <div id="loginLoader" style="display:none;">
+      <svg width="32" height="32" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#1976d2" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.4 31.4" transform="rotate(-90 25 25)"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>
+    </div>
   </form>
 
 
   <script>
 
 
-    // Autentificare cu Firestore (users collection)
+    // Loader și validare inputuri pentru login
+    const loginBtn = document.getElementById('loginBtn');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const loginLoader = document.getElementById('loginLoader');
+    const loginError = document.getElementById('loginError');
+    const accountType = document.getElementById('accountType');
+    function checkInputs() {
+      loginBtn.disabled = !(usernameInput.value.trim() && passwordInput.value);
+    }
+    usernameInput.addEventListener('input', checkInputs);
+    passwordInput.addEventListener('input', checkInputs);
+    accountType.addEventListener('change', checkInputs);
+
     document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const user = document.getElementById('username').value.trim().toLowerCase();
-      const pass = document.getElementById('password').value;
+      loginBtn.disabled = true;
+      loginLoader.style.display = 'block';
+      loginError.style.display = 'none';
+      const user = usernameInput.value.trim().toLowerCase();
+      const pass = passwordInput.value;
+      const type = accountType.value;
       try {
         const db = firebase.firestore();
-        // Caută în users (admin)
-        const q = await db.collection('users')
-          .where('username', '==', user)
-          .where('password', '==', pass)
-          .get();
-        if (!q.empty) {
+        let q, userDoc;
+        if (type === 'admin') {
+          q = await db.collection('users')
+            .where('username', '==', user)
+            .get();
+          if (q.empty) {
+            loginError.textContent = 'Utilizator inexistent!';
+            loginError.style.display = 'block';
+            return;
+          }
+          userDoc = q.docs[0].data();
+          if (userDoc.password !== pass) {
+            loginError.textContent = 'Parolă greșită!';
+            loginError.style.display = 'block';
+            return;
+          }
           localStorage.setItem('adminLoggedIn', '1');
           window.location.href = 'index.html';
-          return;
-        }
-        // Caută în employees (angajat)
-        const empQ = await db.collection('employees')
-          .where('username', '==', user)
-          .where('password', '==', pass)
-          .get();
-        if (!empQ.empty) {
-          const emp = empQ.docs[0].data();
-          localStorage.setItem('userId', empQ.docs[0].id);
+        } else {
+          // user
+          q = await db.collection('employees')
+            .where('username', '==', user)
+            .get();
+          if (q.empty) {
+            loginError.textContent = 'Utilizator inexistent!';
+            loginError.style.display = 'block';
+            return;
+          }
+          userDoc = q.docs[0].data();
+          if (userDoc.password !== pass) {
+            loginError.textContent = 'Parolă greșită!';
+            loginError.style.display = 'block';
+            return;
+          }
+          localStorage.setItem('userId', q.docs[0].id);
           window.location.href = 'user.html';
-          return;
         }
-        document.getElementById('loginError').style.display = 'block';
       } catch (err) {
-        document.getElementById('loginError').textContent = 'Eroare conexiune autentificare!';
-        document.getElementById('loginError').style.display = 'block';
+        loginError.textContent = 'Eroare conexiune autentificare!';
+        loginError.style.display = 'block';
+      } finally {
+        loginBtn.disabled = false;
+        loginLoader.style.display = 'none';
       }
     });
 
